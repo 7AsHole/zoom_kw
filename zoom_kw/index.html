@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zoom kw</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="zoom_kw.css">
+  </head>
+  <body>
+    <div id="app"></div>
+     <div class="container">
+
+        <main class="konten-utama">
+            <div class="stage-header">
+                <div class="stage-title">
+                    <h1>Call</h1>
+                    <div class="stage-meta">
+                        <span class="live-dot"></span>
+                        <span>Berlangsung &middot; 2 peserta</span>
+                    </div>
+                </div>
+                <a class="hang-call" href="#">
+                    <span class="minus">-</span>
+                    <span>Hang Call</span>
+                </a>
+            </div>
+
+            <div class="call-stage">
+                <div class="call-grid">
+                    <div class="participant-tile1">
+                        <div class="avatar one">U1</div>
+                        <div class="tile-tag">
+                            <svg class="mic-icon active" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                <line x1="12" y1="19" x2="12" y2="23"/>
+                            </svg>
+                            <span>User 1</span>
+                        </div>
+                    </div>
+                    <div class="participant-tile2">
+                        <div class="avatar two">U2</div>
+                        <div class="tile-tag">
+                            <svg class="mic-icon active" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                <line x1="12" y1="19" x2="12" y2="23"/>
+                            </svg>
+                            <span>User 2</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <footer class="player-bar">
+        <div class="footer-controls">
+            <button id="micButton">Mic</button>
+            <button id="webcamButton">Video</button>
+            <button id="sharescreenButton">Share Screen</button>
+        </div>
+    </footer>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
