@@ -53,12 +53,50 @@ const localTile = document.getElementById("localTile");
 const remoteTile = document.getElementById("remoteTile");
 const copyLink = document.getElementById("copyLink");
 const liveDot = document.getElementById("liveDot");
+const activeUser = document.getElementById("activeUser");
+const localMicIcon = document.getElementById("localMicIcon");
+const remoteMicIcon = document.getElementById("remoteMicIcon");
+
+// WebRTC doesn't expose "the other side muted their mic" on its own, so we
+// open a small data channel just to pass that one bit of state back and forth.
+let controlChannel = null;
 
 callButton.disabled = true;
 answerButton.disabled = true;
 hangupButton.disabled = true;
 copyLink.disabled = true;
-liveDot.disabled = true;
+
+function setParticipantCount(count) {
+  if (count <= 0) {
+    activeUser.textContent = "Belum dimulai · 0 peserta";
+    liveDot.classList.remove("live");
+  } else {
+    activeUser.textContent = `Berlangsung · ${count} peserta`;
+    liveDot.classList.add("live");
+  }
+}
+
+function setRemoteMicState(enabled) {
+  remoteMicIcon.classList.toggle("muted", !enabled);
+  remoteMicIcon.classList.toggle("active", enabled);
+}
+
+function wireControlChannel(channel) {
+  controlChannel = channel;
+  controlChannel.onopen = () => {
+    // Sync our current mic state as soon as the channel is ready, in case
+    // we muted before the other side connected.
+    controlChannel.send(JSON.stringify({ type: "mic", enabled: micEnabled }));
+  };
+  controlChannel.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "mic") setRemoteMicState(msg.enabled);
+    } catch (err) {
+      console.error("Bad control message:", err);
+    }
+  };
+}
 
 async function setupMedia() {
   try {
@@ -73,6 +111,7 @@ async function setupMedia() {
     pc.ontrack = (event) => {
       event.streams[0].getTracks().forEach((track) => remoteStream.addTrack(track));
       remoteTile.classList.add("has-stream");
+      setParticipantCount(2);
     };
 
     webcamVideo.srcObject = localStream;
@@ -89,30 +128,27 @@ async function setupMedia() {
 }
 
 copyLink.onclick = async () => {
-const currentId = callInput.value.trim();
+  const currentId = callInput.value.trim();
 
-  // 2. Check if the box is empty
   if (!currentId) {
     alert("There is no Call ID to copy yet! Click 'Call' to generate one first.");
     return;
   }
 
-  // 3. Copy the text to the clipboard
   try {
     await navigator.clipboard.writeText(currentId);
     console.log("Call ID copied to clipboard successfully!");
-    
-    // Optional: Briefly change the button text to show it worked
-    const originalText = copyLink.innerText;
-    copyLink.innerText = "Copied!";
-    setTimeout(() => {
-      copyLink.innerText = originalText;
-    }, 2000);
 
+    // Briefly swap the icon to a checkmark to confirm the copy worked
+    const icon = copyLink.querySelector("i");
+    const originalClass = icon.className;
+    icon.className = "fa-solid fa-check";
+    setTimeout(() => {
+      icon.className = originalClass;
+    }, 1500);
   } catch (err) {
     console.error("Failed to copy Call ID to clipboard:", err);
   }
-
 };
 
 webcamButton.onclick = async () => {
@@ -136,6 +172,8 @@ callButton.onclick = async () => {
 
   callInput.value = callDoc.id;
   callInput.readOnly = true;
+
+  wireControlChannel(pc.createDataChannel("control"));
 
   pc.onicecandidate = (event) => {
     if (event.candidate) addDoc(offerCandidates, event.candidate.toJSON());
@@ -179,6 +217,8 @@ answerButton.onclick = async () => {
   const offerCandidates = collection(callDoc, "offerCandidates");
   const answerCandidates = collection(callDoc, "answerCandidates");
 
+  pc.ondatachannel = (event) => wireControlChannel(event.channel);
+
   pc.onicecandidate = (event) => {
     if (event.candidate) addDoc(answerCandidates, event.candidate.toJSON());
   };
@@ -216,14 +256,22 @@ function setInCallState() {
   callButton.disabled = true;
   answerButton.disabled = true;
   copyLink.disabled = false;
-  liveDot.disabled = false;
-};
+  // We're in the call ourselves now; the remote track handler in
+  // setupMedia() will bump this to 2 once the other side joins.
+  setParticipantCount(1);
+}
 
 micButton.onclick = () => {
   if (!localStream) return;
   micEnabled = !micEnabled;
   localStream.getAudioTracks().forEach((track) => (track.enabled = micEnabled));
   micButton.classList.toggle("off", !micEnabled);
+  localMicIcon.classList.toggle("muted", !micEnabled);
+  localMicIcon.classList.toggle("active", micEnabled);
+
+  if (controlChannel && controlChannel.readyState === "open") {
+    controlChannel.send(JSON.stringify({ type: "mic", enabled: micEnabled }));
+  }
 };
 
 sharescreenButton.onclick = async () => {
@@ -256,7 +304,7 @@ async function stopScreenShare(sender) {
     webcamVideo.srcObject = localStream;
   }
   sharescreenButton.classList.remove("active");
-};
+}
 
 hangupButton.onclick = () => {
   pc.close();
@@ -281,8 +329,12 @@ hangupButton.onclick = () => {
   answerButton.disabled = false;
   hangupButton.disabled = true;
   copyLink.disabled = true;
-  liveDot.disabled = true;
   webcamButton.classList.remove("active", "off");
   micButton.classList.remove("off");
+  localMicIcon.classList.remove("muted");
+  localMicIcon.classList.add("active");
+  setRemoteMicState(true);
+  controlChannel = null;
   sharescreenButton.classList.remove("active");
+  setParticipantCount(0);
 };
