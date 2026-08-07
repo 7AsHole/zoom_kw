@@ -51,10 +51,14 @@ const micButton = document.getElementById("micButton");
 const sharescreenButton = document.getElementById("sharescreenButton");
 const localTile = document.getElementById("localTile");
 const remoteTile = document.getElementById("remoteTile");
+const copyLink = document.getElementById("copyLink");
+const liveDot = document.getElementById("liveDot");
 
 callButton.disabled = true;
 answerButton.disabled = true;
 hangupButton.disabled = true;
+copyLink.disabled = true;
+liveDot.disabled = true;
 
 async function setupMedia() {
   try {
@@ -84,6 +88,33 @@ async function setupMedia() {
   }
 }
 
+copyLink.onclick = async () => {
+const currentId = callInput.value.trim();
+
+  // 2. Check if the box is empty
+  if (!currentId) {
+    alert("There is no Call ID to copy yet! Click 'Call' to generate one first.");
+    return;
+  }
+
+  // 3. Copy the text to the clipboard
+  try {
+    await navigator.clipboard.writeText(currentId);
+    console.log("Call ID copied to clipboard successfully!");
+    
+    // Optional: Briefly change the button text to show it worked
+    const originalText = copyLink.innerText;
+    copyLink.innerText = "Copied!";
+    setTimeout(() => {
+      copyLink.innerText = originalText;
+    }, 2000);
+
+  } catch (err) {
+    console.error("Failed to copy Call ID to clipboard:", err);
+  }
+
+};
+
 webcamButton.onclick = async () => {
   if (!localStream) {
     await setupMedia();
@@ -92,6 +123,7 @@ webcamButton.onclick = async () => {
   camEnabled = !camEnabled;
   localStream.getVideoTracks().forEach((track) => (track.enabled = camEnabled));
   webcamButton.classList.toggle("off", !camEnabled);
+  webcamButton.classList.toggle("active", camEnabled);
 };
 
 callButton.onclick = async () => {
@@ -183,7 +215,9 @@ function setInCallState() {
   hangupButton.disabled = false;
   callButton.disabled = true;
   answerButton.disabled = true;
-}
+  copyLink.disabled = false;
+  liveDot.disabled = false;
+};
 
 micButton.onclick = () => {
   if (!localStream) return;
@@ -222,7 +256,7 @@ async function stopScreenShare(sender) {
     webcamVideo.srcObject = localStream;
   }
   sharescreenButton.classList.remove("active");
-}
+};
 
 hangupButton.onclick = () => {
   pc.close();
@@ -246,6 +280,8 @@ hangupButton.onclick = () => {
   callButton.disabled = false;
   answerButton.disabled = false;
   hangupButton.disabled = true;
+  copyLink.disabled = true;
+  liveDot.disabled = true;
   webcamButton.classList.remove("active", "off");
   micButton.classList.remove("off");
   sharescreenButton.classList.remove("active");

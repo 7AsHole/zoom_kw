@@ -75,12 +75,16 @@ body {
     color: #8b909c;
 }
 
-.live-dot {
+.liveDot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
     background: #34d399;
     flex-shrink: 0;
+}
+
+.liveDot.disabled {
+    background: #787878;
 }
 
 /* ---------- Call setup (create / join) ---------- */
@@ -138,6 +142,7 @@ body {
     opacity: 0.4;
     cursor: not-allowed;
 }
+
 
 /* ---------- Two-person call grid ---------- */
 
