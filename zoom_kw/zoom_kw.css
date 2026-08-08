@@ -46,7 +46,7 @@ body.intro-active {
     justify-content: center;
     gap: 18px;
     background: radial-gradient(circle at 50% 42%, #1c1f26 0%, #14161b 68%);
-    transition: opacity 0.6s ease, visibility 0.6s ease;
+    transition: opacity 3s ease, visibility 3s ease;
 }
 
 .intro-splash.hide {
