@@ -55,6 +55,7 @@ const liveDot = document.getElementById("liveDot");
 const activeUser = document.getElementById("activeUser");
 const introSplash = document.getElementById("introSplash");
 const callGrid = document.getElementById("callGrid");
+const flipcamButton = document.getElementById("flipcamButton");
 
 // Play the "ZOOM KW" intro once, then reveal the call page underneath.
 if (introSplash) {
@@ -90,6 +91,7 @@ let peersColRef = null;
 let unsubPeers = null;
 let localTile = null;
 let nextTileNumber = 1; // "User 1" is always the local tile
+let currentFacingMode = 'user';
 
 // remotePeerId -> { pc, stream, tileEl, unsubs: [], pendingCandidates: [] }
 const peers = new Map();
@@ -335,6 +337,8 @@ async function setupMedia() {
   }
 }
 
+
+
 copyLink.onclick = async () => {
   const currentId = callInput.value.trim();
 
@@ -463,6 +467,28 @@ micButton.onclick = () => {
   if (inCall && peersColRef) {
     updateDoc(doc(peersColRef, myPeerId), { micEnabled }).catch(() => {});
   }
+};
+
+async function updateFlipCameraVisibility() {
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    flipcamButton.style.display = "none";
+    return;
+  }
+
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter((device) => device.kind === "videoinput");
+    flipcamButton.style.display = videoInputs.length > 1 ? "inline-flex" : "none";
+  } catch (err) {
+    console.error("Error enumerating devices:", err);
+    flipcamButton.style.display = "none";
+  }
+}
+
+// This is where the actual flip (steps 4–7 from before) belongs.
+flipcamButton.onclick = async () => {
+  if (!localStream) return;
+  // getUserMedia with the toggled facingMode, swap the track, replaceTrack on each peer...
 };
 
 sharescreenButton.onclick = async () => {

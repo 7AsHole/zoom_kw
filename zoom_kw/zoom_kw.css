@@ -84,7 +84,7 @@ body.intro-active {
     border-radius: 10px;
     padding: 4px 10px;
     margin-bottom: clamp(10px, 3vw, 24px);
-    background: #1c3b31;
+    background: #1c1f26;
     opacity: 0;
     transform: rotate(8deg) translateY(-6px) scale(0.7);
     animation: introKwIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.38s forwards;
@@ -466,6 +466,9 @@ body.intro-active {
     background: #532b2b;
 }
 
+#flipcamButton {
+    display: none;
+}
 /* ---------- Responsive: phone / narrow window ---------- */
 
 @media (max-width: 720px) {
