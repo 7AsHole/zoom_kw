@@ -31,37 +31,24 @@
 
                 <div class="call-setup" id="callSetup">
                     <input id="callInput" type="text" placeholder="Paste a call ID to join…" autocomplete="off" />
-                    <button id="copyLink" class="setup-btn" title="Copy call link" aria-label="Copy call link">
+                    <button id="copyLink" class="setup-btn" title="Copy call link" aria-label="Copy call link" disabled>
                         <i class="fa-solid fa-link"></i>
                     </button>
-                    <button id="callButton" class="setup-btn" title="Start a new call" aria-label="Start a new call">
+                    <button id="callButton" class="setup-btn" title="Start a new call" aria-label="Start a new call" disabled>
                         <i class="fa-solid fa-phone"></i>
                     </button>
-                    <button id="answerButton" class="setup-btn" title="Join with call ID" aria-label="Join with call ID">
+                    <button id="answerButton" class="setup-btn" title="Join with call ID" aria-label="Join with call ID" disabled>
                         <i class="fa-solid fa-check"></i>
                     </button>
                 </div>
             </div>
 
             <div class="call-stage">
-                <div class="call-grid">
-                    <div class="participant-tile1" id="localTile">
-                        <video id="webcamVideo" autoplay playsinline muted></video>
-                        <div class="avatar one">U1</div>
-                        <div class="tile-tag">
-                            <i id="localMicIcon" class="mic-icon fa-solid fa-microphone active"></i>
-                            <span>User 1</span>
-                        </div>
-                    </div>
-                    <div class="participant-tile2" id="remoteTile">
-                        <video id="remoteVideo" autoplay playsinline></video>
-                        <div class="avatar two">U2</div>
-                        <div class="tile-tag">
-                            <i id="remoteMicIcon" class="mic-icon fa-solid fa-microphone active"></i>
-                            <span>User 2</span>
-                        </div>
-                    </div>
-                </div>
+                <!--
+                  Tiles are created and removed by main.js as people join/leave.
+                  data-count drives the 1x1 -> 3x3 grid sizing in zoom_kw.css.
+                -->
+                <div class="call-grid" id="callGrid" data-count="0"></div>
             </div>
         </main>
 
