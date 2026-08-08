@@ -56,6 +56,26 @@ const liveDot = document.getElementById("liveDot");
 const activeUser = document.getElementById("activeUser");
 const localMicIcon = document.getElementById("localMicIcon");
 const remoteMicIcon = document.getElementById("remoteMicIcon");
+const introSplash = document.getElementById("introSplash");
+
+// Play the "ZOOM KW" intro once, then reveal the call page underneath.
+if (introSplash) {
+  document.body.classList.add("intro-active");
+  const prefersReducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)"
+  ).matches;
+  const introHoldMs = prefersReducedMotion ? 150 : 2100;
+
+  setTimeout(() => {
+    introSplash.classList.add("hide");
+    document.body.classList.remove("intro-active");
+    introSplash.addEventListener(
+      "transitionend",
+      () => introSplash.remove(),
+      { once: true }
+    );
+  }, introHoldMs);
+}
 
 // WebRTC doesn't expose "the other side muted their mic" on its own, so we
 // open a small data channel just to pass that one bit of state back and forth.

@@ -1,5 +1,5 @@
 /* ---- Tokens ----
-   --bg      #1f1f26  base app background
+   --bg      #14161b  base app background
    --panel   #1c1f26  sidebar / header surface
    --line    #2a2e37  hairline borders
    --tile    #23262e  video tile surface
@@ -18,10 +18,9 @@ html, body {
     width: 100%;
     margin: 0;
     padding: 0;
-    background: #1f1f26;
+    background: #14161b;
     color: #e9eaed;
     font-family: "Inter", -apple-system, sans-serif;
-    overflow: hidden;
 }
 
 .container {
@@ -31,13 +30,112 @@ html, body {
     width: 100vw;
 }
 
+/* ---------- Intro splash ---------- */
+
+body.intro-active {
+    overflow: hidden;
+}
+
+.intro-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: radial-gradient(circle at 50% 42%, #1c1f26 0%, #14161b 68%);
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+}
+
+.intro-splash.hide {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.intro-mark {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 14px;
+    transform: rotate(-2deg);
+}
+
+.intro-zoom {
+    font-family: "Sora", "Inter", sans-serif;
+    font-weight: 700;
+    font-size: clamp(48px, 11vw, 112px);
+    letter-spacing: -0.03em;
+    color: #e9eaed;
+    line-height: 1;
+    opacity: 0;
+    transform: rotate(-4deg) scale(0.82) translateY(14px);
+    animation: introZoomIn 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.intro-kw {
+    font-family: "Sora", "Inter", sans-serif;
+    font-weight: 700;
+    font-size: clamp(15px, 3.2vw, 28px);
+    letter-spacing: 0.05em;
+    color: #34d399;
+    border: 2px solid #34d399;
+    border-radius: 10px;
+    padding: 4px 10px;
+    margin-bottom: clamp(10px, 3vw, 24px);
+    background: #1c3b31;
+    opacity: 0;
+    transform: rotate(8deg) translateY(-6px) scale(0.7);
+    animation: introKwIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.38s forwards;
+}
+
+.intro-tag {
+    margin: 0;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    color: #8b909c;
+    opacity: 0;
+    animation: introTagIn 0.6s ease 0.85s forwards;
+}
+
+@keyframes introZoomIn {
+    to {
+        opacity: 1;
+        transform: rotate(-4deg) scale(1) translateY(0);
+    }
+}
+
+@keyframes introKwIn {
+    to {
+        opacity: 1;
+        transform: rotate(8deg) translateY(-6px) scale(1);
+    }
+}
+
+@keyframes introTagIn {
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .intro-zoom,
+    .intro-kw,
+    .intro-tag {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+
 /* ---------- Main stage ---------- */
 
 .konten-utama {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background-color: #1f1f26;
+    background-color: #14161b;
     border: none;
     border-right: 1px solid #2a2e37;
     min-width: 0;
@@ -211,12 +309,12 @@ html, body {
     font-family: "Sora", sans-serif;
     font-size: 30px;
     font-weight: 600;
-    color: #1f1f26;
+    color: #14161b;
     z-index: 1;
 }
 
 .avatar.one {
-    background: #93a5f5;
+    background: #34d399;
 }
 
 .avatar.two {
@@ -274,7 +372,7 @@ html, body {
     height: 70px;
     padding: 0 22px;
     border-radius: 35px;
-    background-color: #1a1a1a;
+    background-color: #1f1f1f;
     color: white;
 
     display: flex;
