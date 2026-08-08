@@ -331,6 +331,10 @@ async function setupMedia() {
     callButton.disabled = false;
     answerButton.disabled = false;
     webcamButton.classList.add("active");
+
+    // NEW: Check if we have multiple cameras and reveal the button if so
+    await updateFlipCameraVisibility();
+
   } catch (err) {
     console.error("Could not access camera/microphone:", err);
     alert("Camera and microphone access is required to start a call.");
@@ -488,7 +492,42 @@ async function updateFlipCameraVisibility() {
 // This is where the actual flip (steps 4–7 from before) belongs.
 flipcamButton.onclick = async () => {
   if (!localStream) return;
-  // getUserMedia with the toggled facingMode, swap the track, replaceTrack on each peer...
+
+  // 1. Toggle the facing mode state
+  currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+
+  // 2. Stop the existing video track(s) to release the hardware lock
+  // This is especially critical on mobile devices.
+  const oldVideoTracks = localStream.getVideoTracks();
+  oldVideoTracks.forEach(track => track.stop());
+
+  try {
+    // 3. Request just a new video stream with the updated facing mode
+    const newVideoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: currentFacingMode }
+    });
+    const newVideoTrack = newVideoStream.getVideoTracks()[0];
+
+    // 4. Inherit the current camera enabled/disabled state
+    newVideoTrack.enabled = camEnabled;
+
+    // 5. Swap the track in the localStream
+    oldVideoTracks.forEach(track => localStream.removeTrack(track));
+    localStream.addTrack(newVideoTrack);
+
+    // 6. Push the new video track to all active WebRTC peer connections
+    peers.forEach(({ pc }) => {
+      const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+      if (sender) {
+        sender.replaceTrack(newVideoTrack);
+      }
+    });
+
+  } catch (err) {
+    console.error("Error flipping camera:", err);
+    // Revert state if the request fails (e.g., desktop without a back camera)
+    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+  }
 };
 
 sharescreenButton.onclick = async () => {
@@ -573,4 +612,10 @@ window.addEventListener("beforeunload", () => {
   if (inCall && peersColRef) {
     deleteDoc(doc(peersColRef, myPeerId)).catch(() => {});
   }
+});
+
+navigator.mediaDevices?.addEventListener('devicechange', () => {
+    if (localStream) {
+        updateFlipCameraVisibility();
+    }
 });
