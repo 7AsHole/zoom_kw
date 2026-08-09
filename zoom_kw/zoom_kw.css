@@ -850,11 +850,16 @@ body.intro-active {
 
     .call-grid.has-focus {
         width: 100%;
-        height: calc(100dvh - 190px);
+        height: calc(100dvh - 230px);
         min-height: 260px;
-        max-height: none;
+        max-height: 520px;
+
+        grid-template-columns: minmax(0, 1fr) minmax(90px, 125px);
+        gap: 8px;
+
         overflow: hidden;
     }
+}
 
     .participant-tile {
         min-height: 130px;
