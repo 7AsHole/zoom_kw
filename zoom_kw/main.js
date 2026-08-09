@@ -893,8 +893,6 @@ flipcamButton.onclick = async () => {
     currentFacingMode = newFacingMode;
     flipErrorCount = 0;
 
-    await Promise.allSettled(replacePromises);
-
     // --- SUCCESS ---
     // Update state on success and reset the error counter
     currentFacingMode = newFacingMode;
