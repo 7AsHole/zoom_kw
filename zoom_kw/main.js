@@ -880,18 +880,18 @@ flipcamButton.onclick = async () => {
     }
 
     // 6. Update WebRTC peer senders safely
-    const replacePromises = peers.map(({ pc }) => {
-      // Find the sender handling video (even if its current track is null)
-      const sender = pc.getSenders().find(s => 
-        (s.track && s.track.kind === "video") || 
-        (s.searchKind === "video") // Custom tag if you store kinds on senders
-      ) || pc.getSenders().find(s => s.track?.kind === "video");
-
+    const replacePromises = [];
+    for (const [, { pc }] of peers) {
+      const sender = pc.getSenders().find(s => s.track?.kind === "video");
       if (sender) {
-        return sender.replaceTrack(newVideoTrack);
+        replacePromises.push(sender.replaceTrack(newVideoTrack));
       }
-      return Promise.resolve();
-    });
+    }
+    await Promise.allSettled(replacePromises);
+
+    // Success
+    currentFacingMode = newFacingMode;
+    flipErrorCount = 0;
 
     await Promise.allSettled(replacePromises);
 
