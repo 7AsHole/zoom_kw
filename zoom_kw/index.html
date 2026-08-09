@@ -17,12 +17,39 @@
         <p class="intro-tag">Video call, disederhanakan.</p>
      </div>
 
+     <!-- User-visible feedback for errors that used to fail silently -->
+     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+     <!-- Step-by-step help, opened from the grey "?" button beside "Call" -->
+     <div id="helpModal" class="help-modal" hidden>
+        <div class="help-modal-backdrop" data-close></div>
+        <div class="help-modal-panel" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+            <div class="help-modal-header">
+                <h2 id="helpModalTitle">How this works</h2>
+                <button class="help-modal-close" type="button" data-close aria-label="Close help">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <ol class="help-steps">
+                <li><strong>Turn on your camera &amp; mic</strong> — tap the camera icon in the bottom bar and allow access.</li>
+                <li><strong>Start or join a call</strong> — tap the phone icon to start a new call, or paste a Call ID and tap the checkmark to join one.</li>
+                <li><strong>Share the call</strong> — tap the link icon to copy an invite link for others.</li>
+                <li><strong>Tap a tile to focus it</strong> — tap any participant's video to make it big; tap it again to go back to the grid.</li>
+                <li><strong>Zoom your own view</strong> — the magnifying glass on your own tile zooms your camera or screen share in and out. Only you can control it.</li>
+                <li><strong>Bottom bar</strong> — mute, camera on/off, flip camera (phones with two cameras), share screen (desktop only), and hang up.</li>
+            </ol>
+        </div>
+     </div>
+
      <div class="container">
 
         <main class="konten-utama">
             <div class="stage-header">
                 <div class="stage-title">
-                    <h1>Call</h1>
+                    <div class="stage-title-row">
+                        <h1>Call</h1>
+                        <button id="helpButton" class="help-btn" type="button" title="How to use this" aria-label="How to use this call">?</button>
+                    </div>
                     <div class="stage-meta">
                         <span class="liveDot" id="liveDot"></span>
                         <span class="activeUser" id="activeUser">Belum dimulai &middot; 0 peserta</span>
