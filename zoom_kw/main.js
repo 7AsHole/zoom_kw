@@ -138,6 +138,21 @@ function createTile(peerId, { isLocal }) {
   tile.className = "participant-tile";
   tile.dataset.peerId = peerId;
 
+  // --- CLICK TO ZOOM LOGIC ---
+  tile.onclick = () => {
+    const isCurrentlyZoomed = tile.classList.contains("zoomed");
+
+    // Remove 'zoomed' from any existing zoomed tile
+    document.querySelectorAll(".participant-tile.zoomed").forEach((t) => {
+      t.classList.remove("zoomed");
+    });
+
+    // If it wasn't already zoomed, zoom it in
+    if (!isCurrentlyZoomed) {
+      tile.classList.add("zoomed");
+    }
+  };
+
   const video = document.createElement("video");
   video.autoplay = true;
   video.playsInline = true;
@@ -145,9 +160,7 @@ function createTile(peerId, { isLocal }) {
 
   const avatar = document.createElement("div");
   avatar.className = "avatar" + (isLocal ? " local" : "");
-  avatar.textContent = isLocal
-    ? "U1"
-    : `U${nextTileNumber - 1}`;
+  avatar.textContent = isLocal ? "U1" : `U${nextTileNumber - 1}`;
 
   const tag = document.createElement("div");
   tag.className = "tile-tag";
@@ -490,43 +503,98 @@ async function updateFlipCameraVisibility() {
 }
 
 // This is where the actual flip (steps 4–7 from before) belongs.
+let isFlipping = false;
+
 flipcamButton.onclick = async () => {
-  if (!localStream) return;
+  if (!localStream || isFlipping) return;
 
-  // 1. Toggle the facing mode state
-  currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+  isFlipping = true;
+  flipcamButton.disabled = true; // Prevent rapid spamming
 
-  // 2. Stop the existing video track(s) to release the hardware lock
-  // This is especially critical on mobile devices.
-  const oldVideoTracks = localStream.getVideoTracks();
-  oldVideoTracks.forEach(track => track.stop());
+  const oldFacingMode = currentFacingMode;
+  const newFacingMode = oldFacingMode === 'user' ? 'environment' : 'user';
+
+  // Grab existing video track
+  const oldVideoTrack = localStream.getVideoTracks()[0];
 
   try {
-    // 3. Request just a new video stream with the updated facing mode
+    // 1. Stop the old track FIRST (Required for iOS / Mobile Android)
+    if (oldVideoTrack) {
+      oldVideoTrack.stop();
+      localStream.removeTrack(oldVideoTrack);
+    }
+
+    // 2. Request the new camera stream
     const newVideoStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: currentFacingMode }
+      video: { facingMode: { exact: newFacingMode } } // Fallback to flexible facingMode if exact fails
+    }).catch(() => {
+      // Retry without 'exact' in case device doesn't strictly support the mode string
+      return navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newFacingMode }
+      });
     });
+
     const newVideoTrack = newVideoStream.getVideoTracks()[0];
 
-    // 4. Inherit the current camera enabled/disabled state
+    // 3. Inherit current mute/enabled state
     newVideoTrack.enabled = camEnabled;
 
-    // 5. Swap the track in the localStream
-    oldVideoTracks.forEach(track => localStream.removeTrack(track));
+    // 4. Attach new track to local stream
     localStream.addTrack(newVideoTrack);
 
-    // 6. Push the new video track to all active WebRTC peer connections
-    peers.forEach(({ pc }) => {
-      const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-      if (sender) {
-        sender.replaceTrack(newVideoTrack);
+    // 5. Refresh local video element playback
+    if (localTile) {
+      const videoEl = localTile.querySelector("video");
+      if (videoEl) {
+        videoEl.srcObject = localStream;
+        videoEl.play().catch(() => {});
       }
+    }
+
+    // 6. Update WebRTC peer senders safely
+    const replacePromises = peers.map(({ pc }) => {
+      // Find the sender handling video (even if its current track is null)
+      const sender = pc.getSenders().find(s => 
+        (s.track && s.track.kind === "video") || 
+        (s.searchKind === "video") // Custom tag if you store kinds on senders
+      ) || pc.getSenders().find(s => s.track?.kind === "video");
+
+      if (sender) {
+        return sender.replaceTrack(newVideoTrack);
+      }
+      return Promise.resolve();
     });
 
+    await Promise.allSettled(replacePromises);
+
+    // Update state on success
+    currentFacingMode = newFacingMode;
+
   } catch (err) {
-    console.error("Error flipping camera:", err);
-    // Revert state if the request fails (e.g., desktop without a back camera)
-    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+    console.error("Error flipping camera, attempting rollback:", err);
+    flipcamButton.style.display = "none";
+
+    // ROLLBACK: Try to restore the original camera if new one failed
+    try {
+      const rollbackStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: oldFacingMode }
+      });
+      const rollbackTrack = rollbackStream.getVideoTracks()[0];
+      rollbackTrack.enabled = camEnabled;
+      
+      localStream.addTrack(rollbackTrack);
+      peers.forEach(({ pc }) => {
+        const sender = pc.getSenders().find(s => s.track?.kind === "video");
+        if (sender) sender.replaceTrack(rollbackTrack);
+      });
+    } catch (rollbackErr) {
+      console.error("Failed to recover previous camera track:", rollbackErr);
+    }
+
+    alert("Could not switch camera.");
+  } finally {
+    isFlipping = false;
+    flipcamButton.disabled = false;
   }
 };
 

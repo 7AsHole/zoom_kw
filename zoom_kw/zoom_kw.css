@@ -46,7 +46,7 @@ body.intro-active {
     justify-content: center;
     gap: 18px;
     background: radial-gradient(circle at 50% 42%, #1c1f26 0%, #14161b 68%);
-    transition: opacity 3s ease, visibility 3s ease;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
 }
 
 .intro-splash.hide {
@@ -255,6 +255,7 @@ body.intro-active {
 }
 
 .call-grid {
+    position: relative;
     display: grid;
     gap: 20px;
     width: 100%;
@@ -295,6 +296,7 @@ body.intro-active {
 .call-grid[data-count="9"] {
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
+    
 }
 
 .participant-tile {
@@ -307,6 +309,28 @@ body.intro-active {
     align-items: center;
     justify-content: center;
     min-height: 140px;
+    cursor: pointer;
+}
+
+.participant-tile:hover {
+    border-color: #a5b9e9;
+}
+
+.participant-tile.zoomed {
+    position: absolute;
+    inset: 0; 
+    z-index: 10; 
+}
+
+.participant-tile.zoomed video {
+    object-fit: contain;
+    background: #14161b;
+}
+
+.participant-tile.zoomed .avatar {
+    width: 96px !important;
+    height: 96px !important;
+    font-size: 30px !important;
 }
 
 .participant-tile video {
