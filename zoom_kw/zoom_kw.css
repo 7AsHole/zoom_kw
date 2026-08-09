@@ -896,7 +896,7 @@ body.intro-active {
         height: 38px;
         font-size: 15px;
     }
-}
+
 
 @media (max-width: 420px) {
     .stage-header {
