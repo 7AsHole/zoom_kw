@@ -842,8 +842,9 @@ flipcamButton.onclick = async () => {
   const oldFacingMode = currentFacingMode;
   const newFacingMode = oldFacingMode === 'user' ? 'environment' : 'user';
 
-  // Grab existing video track
+  // Grab existing video track and its name/label
   const oldVideoTrack = localStream.getVideoTracks()[0];
+  const oldCameraLabel = oldVideoTrack ? oldVideoTrack.label : "";
 
   try {
     // 1. Stop the old track FIRST (Required for iOS / Mobile Android)
@@ -863,6 +864,13 @@ flipcamButton.onclick = async () => {
     });
 
     const newVideoTrack = newVideoStream.getVideoTracks()[0];
+
+    // --- NEW LOGIC: Check if the browser cheated ---
+    // If the new camera has the exact same name as the old one, it didn't actually flip.
+    if (oldCameraLabel && newVideoTrack.label === oldCameraLabel && newVideoTrack.label !== "") {
+      throw new Error("Browser ignored facingMode and returned the same camera.");
+    }
+    // -----------------------------------------------
 
     // 3. Inherit current mute/enabled state
     newVideoTrack.enabled = camEnabled;
@@ -892,12 +900,12 @@ flipcamButton.onclick = async () => {
     // Success
     currentFacingMode = newFacingMode;
     flipErrorCount = 0;
-
+    showToast("Camera flipped successfully", "info");
+    
   } catch (err) {
     console.error("Error flipping camera, attempting rollback:", err);
     
     // --- ERROR TRACKING ---
-    // Increment the error count
     flipErrorCount++; 
     
     // Hide the button ONLY if it has failed 2 or more times
@@ -923,7 +931,7 @@ flipcamButton.onclick = async () => {
       console.error("Failed to recover previous camera track:", rollbackErr);
     }
 
-    alert("Could not switch camera.");
+    showToast("Could not switch camera.", "error"); // Changed from alert() for better UI
   } finally {
     isFlipping = false;
     flipcamButton.disabled = false;
@@ -989,6 +997,7 @@ sharescreenButton.onclick = async () => {
       });
 
       if (localTile) localTile.querySelector("video").srcObject = screenStream;
+      flipcamButton.disabled = true;
       sharescreenButton.classList.add("active");
       screenTrack.onended = () => stopScreenShare();
     } catch (err) {
@@ -1004,6 +1013,7 @@ function stopScreenShare() {
   if (screenStream) {
     screenStream.getTracks().forEach((track) => track.stop());
     screenStream = null;
+    flipcamButton.disabled = false;
   }
   if (localStream) {
     const camTrack = localStream.getVideoTracks()[0];
