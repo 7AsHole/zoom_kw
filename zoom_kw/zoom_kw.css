@@ -488,9 +488,9 @@ body.intro-active {
    grid and .focused on the selected tile (see main.js toggleFocusTile). */
 .call-grid.has-focus {
     display: grid;
-    grid-template-rows: 2fr;
+    grid-template-rows: 1fr 120px;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(96px, 150px);
+    grid-auto-columns: minmax(96px, 170px);
     gap: 14px;
     max-height: 620px;
     overflow-x: auto;
