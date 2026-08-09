@@ -486,15 +486,16 @@ body.intro-active {
    Clicking a tile grows it and shrinks the rest into a thumbnail strip,
    instead of the old full-screen takeover. Toggled via .has-focus on the
    grid and .focused on the selected tile (see main.js toggleFocusTile). */
+  /* Focused tile becomes the large left panel.
+   Other participants become small tiles in a right-side column. */
 .call-grid.has-focus {
     display: grid;
-    grid-template-rows: 1fr 120px;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(96px, 170px);
+    grid-template-columns: minmax(0, 1fr) 180px;
+    grid-template-rows: repeat(auto-fit, minmax(0, 1fr));
+    grid-auto-flow: row;
     gap: 14px;
     max-height: 620px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: hidden;
 }
 
 .call-grid.has-focus .participant-tile {
@@ -502,23 +503,14 @@ body.intro-active {
 }
 
 .call-grid.has-focus .participant-tile.focused {
-    grid-row: 1;
-    grid-column: 1 / -1;
+    grid-column: 1;
+    grid-row: 1 / -1;
 }
 
 .call-grid.has-focus .participant-tile:not(.focused) {
-    grid-row: 2;
-}
-
-.call-grid.has-focus .participant-tile:not(.focused) .tile-tag {
-    font-size: 11px;
-    padding: 4px 8px;
-}
-
-.call-grid.has-focus .participant-tile:not(.focused) .avatar {
-    width: 48px;
-    height: 48px;
-    font-size: 16px;
+    grid-column: 2;
+    grid-row: auto;
+    min-height: 0;
 }
 
 .participant-tile {

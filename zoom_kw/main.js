@@ -359,13 +359,18 @@ function attachZoomControl(tile, video) {
 
   let zoomIndex = 0;
   zoomBtn.addEventListener("click", (event) => {
-    event.stopPropagation(); // don't also trigger the tile's focus toggle
+    event.stopPropagation();
+
     zoomIndex = (zoomIndex + 1) % ZOOM_LEVELS.length;
     const level = ZOOM_LEVELS[zoomIndex];
+
     video.style.transform = level === 1 ? "" : `scale(${level})`;
+
     zoomBtn.classList.toggle("zoom-active", level > 1);
     zoomBtn.title =
-      level > 1 ? `Zoomed ${level}x — tap to change` : "Zoom your view";
+      level > 1
+        ? `Zoomed ${level}x — tap to change`
+        : "Zoom video";
   });
 
   tile.appendChild(zoomBtn);
@@ -408,9 +413,7 @@ function createTile(peerId, { isLocal }) {
 
   // Only the tile owner can zoom their own camera/screen - never added to
   // remote tiles, so nobody else can control your view.
-  if (isLocal) {
-    attachZoomControl(tile, video);
-  }
+  attachZoomControl(tile, video); 
 
   callGrid.appendChild(tile);
   updateParticipantCount();
