@@ -893,11 +893,6 @@ flipcamButton.onclick = async () => {
     currentFacingMode = newFacingMode;
     flipErrorCount = 0;
 
-    // --- SUCCESS ---
-    // Update state on success and reset the error counter
-    currentFacingMode = newFacingMode;
-    flipErrorCount = 0; 
-
   } catch (err) {
     console.error("Error flipping camera, attempting rollback:", err);
     
