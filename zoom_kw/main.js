@@ -347,7 +347,7 @@ function clearFocusIfNeeded(tile) {
 // else's camera/screen - only their own. It's a CSS scale of the preview
 // element itself, so it applies equally whether the local video is the
 // webcam or an active screen share (same <video> element either way).
-const ZOOM_LEVELS = [1, 1.5, 0.5];
+const ZOOM_LEVELS = [1, 1.5, "contain"];
 
 function attachZoomControl(tile, video) {
   const zoomBtn = document.createElement("button");
@@ -360,18 +360,26 @@ function attachZoomControl(tile, video) {
   let zoomIndex = 0;
   zoomBtn.addEventListener("click", (event) => {
     event.stopPropagation();
-
     zoomIndex = (zoomIndex + 1) % ZOOM_LEVELS.length;
     const level = ZOOM_LEVELS[zoomIndex];
 
-    video.style.transform = level === 1 ? "" : `scale(${level})`;
+    if (level === "contain") {
+      video.style.transform = "";
+      video.style.objectFit = "contain";
+    } else {
+      video.style.objectFit = "cover";
+      video.style.transform = level === 1 ? "" : `scale(${level})`;
+    }
 
-    zoomBtn.classList.toggle("zoom-active", level > 1);
+    zoomBtn.classList.toggle("zoom-active", level === 1.5);
+
     zoomBtn.title =
-      level > 1
-        ? `Zoomed ${level}x — tap to change`
-        : "Zoom video";
-  });
+      level === 1.5
+        ? "Zoomed 1.5x — tap to change"
+        : level === "contain"
+          ? "Fit video — tap to change"
+          : "Zoom video";
+      });
 
   tile.appendChild(zoomBtn);
   return zoomBtn;
