@@ -1,69 +1,924 @@
-body {
-    height: 100vh;
-    width: 100vw;
+/* ---- Tokens ----
+   --bg      #14161b  base app background
+   --panel   #1c1f26  sidebar / header surface
+   --line    #2a2e37  hairline borders
+   --tile    #23262e  video tile surface
+   --text    #e9eaed  primary text
+   --dim     #8b909c  secondary text
+   --accent  #34d399  "create call" / live state (emerald)
+   --accent-dim #1c3b31 accent surface for badges
+*/
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
     margin: 0;
     padding: 0;
+    background: #14161b;
+    color: #e9eaed;
+    font-family: "Inter", -apple-system, sans-serif;
 }
 
 .container {
     display: flex;
     flex-direction: row;
-    height: 100vh;
+    min-height: 100vh;
     width: 100vw;
-
 }
+
+/* ---------- Toasts (user-visible error/status feedback) ---------- */
+
+.toast-container {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    width: min(92vw, 420px);
+}
+
+.toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #1c1f26;
+    border: 1px solid #2a2e37;
+    color: #e9eaed;
+    font-size: 13px;
+    line-height: 1.4;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transform: translateY(-8px);
+    animation: toastIn 0.22s ease forwards;
+}
+
+.toast.toast-error {
+    border-color: #532b2b;
+}
+
+.toast.toast-error .toast-icon {
+    color: #ef6a6a;
+}
+
+.toast.toast-info .toast-icon {
+    color: #34d399;
+}
+
+.toast .toast-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.toast.leaving {
+    animation: toastOut 0.2s ease forwards;
+}
+
+@keyframes toastIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes toastOut {
+    to {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}
+
+/* ---------- Intro splash ---------- */
+
+body.intro-active {
+    overflow: hidden;
+}
+
+.intro-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: radial-gradient(circle at 50% 42%, #1c1f26 0%, #14161b 68%);
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+
+.intro-splash.hide {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.intro-mark {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 14px;
+    transform: rotate(-2deg);
+}
+
+.intro-zoom {
+    font-family: "Sora", "Inter", sans-serif;
+    font-weight: 700;
+    font-size: clamp(48px, 11vw, 112px);
+    letter-spacing: -0.03em;
+    color: #e9eaed;
+    line-height: 1;
+    opacity: 0;
+    transform: rotate(-4deg) scale(0.82) translateY(14px);
+    animation: introZoomIn 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.intro-kw {
+    font-family: "Sora", "Inter", sans-serif;
+    font-weight: 700;
+    font-size: clamp(15px, 3.2vw, 28px);
+    letter-spacing: 0.05em;
+    color: #f7f7f7;
+    border: 2px solid #fefefe;
+    border-radius: 10px;
+    padding: 4px 10px;
+    margin-bottom: clamp(10px, 3vw, 24px);
+    background: #1c1f26;
+    opacity: 0;
+    transform: rotate(8deg) translateY(-6px) scale(0.7);
+    animation: introKwIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.38s forwards;
+}
+
+.intro-tag {
+    margin: 0;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    color: #8b909c;
+    opacity: 0;
+    animation: introTagIn 0.6s ease 0.85s forwards;
+}
+
+@keyframes introZoomIn {
+    to {
+        opacity: 1;
+        transform: rotate(-4deg) scale(1) translateY(0);
+    }
+}
+
+@keyframes introKwIn {
+    to {
+        opacity: 1;
+        transform: rotate(8deg) translateY(-6px) scale(1);
+    }
+}
+
+@keyframes introTagIn {
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .intro-zoom,
+    .intro-kw,
+    .intro-tag {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ---------- Main stage ---------- */
 
 .konten-utama {
     flex: 1;
-    justify-content: flex-start;
-    background-color: #818080;
-    border: 5px solid #474747;
-}
-
-.sidebar {
     display: flex;
     flex-direction: column;
-    width: 15vw;
-    background-color: #f5efef;
-    border: 5px solid #f0f0f0;
+    background-color: #14161b;
+    border: none;
+    border-right: 1px solid #2a2e37;
+    min-width: 0;
+    min-height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
-.sidebar-header {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-}
-
-.close-button {
-   display: flex;
-   flex-direction: row;
-   align-items: center;
-
-}
-
-.user {
+.stage-header {
     display: flex;
     flex-direction: row;
     align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px 28px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.stage-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stage-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stage-title h1 {
+    margin: 0;
+    font-family: "Sora", "Inter", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* ---------- Help button + step-by-step modal ---------- */
+
+.help-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid #2a2e37;
+    background: #23262e;
+    color: #8b909c;
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.help-btn:hover {
+    background: #2a2e37;
+    color: #e9eaed;
+    border-color: #3a3f4a;
+}
+
+.help-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.help-modal[hidden] {
+    display: none;
+}
+
+.help-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 11, 14, 0.6);
+}
+
+.help-modal-panel {
+    position: relative;
+    z-index: 1;
+    width: min(92vw, 440px);
+    max-height: 82vh;
+    overflow-y: auto;
+    background: #1c1f26;
+    border: 1px solid #2a2e37;
+    border-radius: 16px;
+    padding: 20px 22px 24px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+.help-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.help-modal-header h2 {
+    margin: 0;
+    font-family: "Sora", "Inter", sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.help-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: #8b909c;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.help-modal-close:hover {
+    background: #23262e;
+    color: #e9eaed;
+}
+
+.help-steps {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #c7cad1;
+}
+
+.help-steps strong {
+    color: #e9eaed;
+}
+
+.stage-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #8b909c;
+}
+
+.liveDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #787878;
+    flex-shrink: 0;
+    transition: background 0.2s ease;
+}
+
+.liveDot.live {
+    background: #34d399;
+}
+
+/* ---------- Call setup (create / join) ---------- */
+
+.call-setup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.call-setup #callInput {
+    width: 220px;
+    max-width: 40vw;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #2a2e37;
+    background: #1c1f26;
+    color: #e9eaed;
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+}
+
+.call-setup #callInput::placeholder {
+    color: #8b909c;
+}
+
+.call-setup #callInput:focus {
+    outline: none;
+    border-color: #34d399;
+}
+
+.setup-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid #2a2e37;
+    background: #1c3b31;
+    color: #34d399;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.setup-btn:hover:not(:disabled) {
+    background: #234437;
+}
+
+.setup-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+
+/* ---------- N-person call grid (1x1 up to 3x3) ---------- */
+
+.call-stage {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 28px 130px;
+    min-height: 0;
+}
+
+.call-grid {
+    position: relative;
+    display: grid;
+    gap: 20px;
+    width: 100%;
+    height: 100%;
+    max-width: 1100px;
+    max-height: 620px;
+    grid-template-columns: 1fr;
+    grid-auto-rows: 1fr;
+}
+
+/* Grow the grid from a single tile up to a 3x3 layout as people join.
+   data-count is kept in sync with the number of tiles by main.js. */
+.call-grid[data-count="0"],
+.call-grid[data-count="1"] {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+}
+
+.call-grid[data-count="2"] {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: 1fr;
+}
+
+.call-grid[data-count="3"],
+.call-grid[data-count="4"] {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+}
+
+.call-grid[data-count="5"],
+.call-grid[data-count="6"] {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+}
+
+.call-grid[data-count="7"],
+.call-grid[data-count="8"],
+.call-grid[data-count="9"] {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
 
 }
 
-.footer-controls {
+/* ---------- Spotlight / focus layout ----------
+   Clicking a tile grows it and shrinks the rest into a thumbnail strip,
+   instead of the old full-screen takeover. Toggled via .has-focus on the
+   grid and .focused on the selected tile (see main.js toggleFocusTile). */
+  /* Focused tile becomes the large left panel.
+   Other participants become small tiles in a right-side column. */
+.call-grid.has-focus {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(76px, 110px);
+    grid-template-rows: repeat(8, minmax(0, 1fr));
+    grid-auto-flow: row;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-height: 620px;
+    overflow: hidden;
+}
+
+.call-grid.has-focus .participant-tile {
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Large focused video on the left */
+.call-grid.has-focus .participant-tile.focused {
+    grid-column: 1;
+    grid-row: 1 / -1;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* Other participants stack on the right */
+.call-grid.has-focus .participant-tile:not(.focused) {
+    grid-column: 2;
+    min-width: 0;
+    min-height: 0;
+}
+
+.call-grid.has-focus .participant-tile video {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.call-grid.has-focus .participant-tile.focused video {
+    object-position: center;
+}
+
+.call-grid.has-focus .participant-tile:not(.focused) video {
+    object-position: center;
+}
+
+.call-grid.has-focus[data-count="2"] {
+    grid-template-rows: 1fr;
+}
+
+.call-grid.has-focus[data-count="3"] {
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.call-grid.has-focus[data-count="4"] {
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+.call-grid.has-focus[data-count="5"] {
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+}
+
+.call-grid.has-focus[data-count="6"] {
+    grid-template-rows: repeat(5, minmax(0, 1fr));
+}
+
+.call-grid.has-focus[data-count="7"] {
+    grid-template-rows: repeat(6, minmax(0, 1fr));
+}
+
+.call-grid.has-focus[data-count="8"] {
+    grid-template-rows: repeat(7, minmax(0, 1fr));
+}
+
+.call-grid.has-focus[data-count="9"] {
+    grid-template-rows: repeat(8, minmax(0, 1fr));
+}
+
+.participant-tile {
+    position: relative;
+    background: #23262e;
+    border: 1px solid #2a2e37;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 140px;
+    cursor: pointer;
+}
+
+.participant-tile:hover {
+    border-color: #a5b9e9;
+}
+
+.participant-tile.focused {
+    border-color: #34d399;
+}
+
+.participant-tile video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+    background: #23262e;
+    transform-origin: center center;
+    transition: transform 0.25s ease;
+}
+
+/* Once JS attaches a stream it adds .has-stream and we swap avatar -> video */
+.participant-tile.has-stream video {
+    display: block;
+}
+
+.participant-tile.has-stream .avatar {
+    display: none;
+}
+
+.avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Sora", sans-serif;
+    font-size: 30px;
+    font-weight: 600;
+    color: #14161b;
+    z-index: 1;
+    background: #93a5f5;
+}
+
+.avatar.local {
+    background: #34d399;
+}
+
+.tile-tag {
+    position: absolute;
+    left: 14px;
+    bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(20, 22, 27, 0.72);
+    font-size: 13px;
+    z-index: 2;
+}
+
+.mic-icon {
+    font-size: 13px;
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+}
+
+.mic-icon.muted {
+    color: #ef6a6a;
+}
+
+.mic-icon.active {
+    color: #8b909c;
+}
+
+/* ---------- Per-tile digital zoom (local camera/screen only) ---------- */
+
+.zoom-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(20, 22, 27, 0.72);
+    color: #e9eaed;
+    border: 1px solid #2a2e37;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+}
+
+.zoom-btn:hover {
+    background: rgba(35, 38, 46, 0.9);
+}
+
+.zoom-btn.zoom-active {
+    color: #34d399;
+    border-color: #1c3b31;
+}
+
+/* Grid gets tighter as more tiles pack in, so shrink avatars a bit past 4 */
+.call-grid[data-count="5"] .avatar,
+.call-grid[data-count="6"] .avatar,
+.call-grid[data-count="7"] .avatar,
+.call-grid[data-count="8"] .avatar,
+.call-grid[data-count="9"] .avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 20px;
+}
+
+/* ---------- Sidebar ---------- */
+
+
+/* ---------- Footer call controls ---------- */
+
+.player-bar {
     position: fixed;
-    bottom: 20px; 
-    left: 50%;
-    transform: translateX(-50%); 
-    
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+    padding: 20px 12px calc(20px + env(safe-area-inset-bottom));
+    z-index: 1000;
+}
+
+.footer-controls {
+    pointer-events: auto;
     height: 70px;
-    padding: 0 30px; 
-    border-radius: 35px; 
+    padding: 0 22px;
+    border-radius: 35px;
     background-color: #1f1f1f;
     color: white;
-    
+
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    gap: 20px;
-    z-index: 1000; 
+    gap: 14px;
+    max-width: 100%;
+}
+
+.ctrl-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #2a2a2a;
+    color: #e9eaed;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.ctrl-btn:hover:not(:disabled) {
+    background: #363636;
+}
+
+.ctrl-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* mic / camera toggled off */
+.ctrl-btn.off {
+    background: #3b1c1c;
+    color: #ef6a6a;
+}
+
+/* screen share currently active */
+.ctrl-btn.active {
+    background: #1c3b31;
+    color: #34d399;
+}
+
+/* button exists but the platform can't actually do the thing (e.g. screen
+   share on a mobile browser) - shown instead of just silently failing */
+.ctrl-btn.unsupported {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* hang up */
+.ctrl-btn.danger {
+    background: #3b1c1c;
+    color: #d33434;
+}
+
+.ctrl-btn.danger:hover:not(:disabled) {
+    background: #532b2b;
+}
+
+#flipcamButton {
+    display: none;
+}
+/* ---------- Responsive: phone / narrow window ---------- */
+
+@media (max-width: 720px) {
+    .container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .konten-utama {
+        border-right: none;
+        min-height: 100vh;
+    }
+
+    .stage-header {
+        padding: 16px 16px;
+        gap: 12px;
+    }
+
+    .call-setup #callInput {
+        width: 150px;
+        max-width: 50vw;
+    }
+
+    .call-stage {
+        padding: 0 16px 120px;
+    }
+    
+
+    /* On small screens, never go past 2 columns so tiles stay legible */
+    .call-grid[data-count="0"],
+    .call-grid[data-count="1"] {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+    }
+
+    .call-grid[data-count="2"],
+    .call-grid[data-count="3"],
+    .call-grid[data-count="4"] {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+    }
+
+    .call-grid[data-count="5"],
+    .call-grid[data-count="6"],
+    .call-grid[data-count="7"],
+    .call-grid[data-count="8"],
+    .call-grid[data-count="9"] {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(3, 1fr);
+        max-height: none;
+        overflow-y: auto;
+    }
+
+    .call-stage {
+        align-items: stretch;
+        justify-content: stretch;
+        min-height: 0;
+    }
+
+    .call-grid.has-focus {
+        width: 100%;
+        height: calc(100dvh - 230px);
+        min-height: 260px;
+        max-height: 520px;
+
+        grid-template-columns: minmax(0, 1fr) minmax(90px, 125px);
+        gap: 8px;
+
+        overflow: hidden;
+    }
+}
+
+    .participant-tile {
+        min-height: 130px;
+    }
+
+    .avatar {
+        width: 72px;
+        height: 72px;
+        font-size: 22px;
+    }
+
+    .zoom-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 11px;
+        top: 8px;
+        right: 8px;
+    }
+
+    /* shrink the footer bar so it doesn't dominate small screens */
+    .player-bar {
+        padding: 12px 10px calc(12px + env(safe-area-inset-bottom));
+    }
+
+    .footer-controls {
+        height: 54px;
+        padding: 0 12px;
+        border-radius: 27px;
+        gap: 8px;
+    }
+
+    .ctrl-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 15px;
+    }
+
+
+@media (max-width: 420px) {
+    .stage-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .call-setup #callInput {
+        width: 100%;
+        max-width: none;
+        flex: 1;
+    }
+
+    .footer-controls {
+        height: 48px;
+        padding: 0 10px;
+        gap: 6px;
+    }
+
+    .ctrl-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 13px;
+    }
 }
