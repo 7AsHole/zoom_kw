@@ -29,6 +29,7 @@ const firestore = getFirestore(app);
 // Hard cap on participants in a single call (drives the 1x1 -> 3x3 grid).
 const MAX_PEERS = 9;
 let flipErrorCount = 0;
+
 const servers = {
   iceServers: [
     {
@@ -167,6 +168,11 @@ let currentFacingMode = 'user';
 
 // remotePeerId -> { pc, stream, tileEl, unsubs: [], pendingCandidates: [] }
 const peers = new Map();
+const PRESENCE_HEARTBEAT_MS = 5000;
+const PRESENCE_TIMEOUT_MS = 15000;
+
+let presenceHeartbeatTimer = null;
+let presenceCleanupTimer = null;
 
 callButton.disabled = true;
 answerButton.disabled = true;
@@ -482,6 +488,7 @@ async function connectToPeer(remoteId) {
     tileEl: null,
     unsubs: [],
     pendingCandidates: [],
+    lastSeenMs: Date.now(),
   };
   peers.set(remoteId, peerEntry);
 
@@ -500,10 +507,32 @@ async function connectToPeer(remoteId) {
     setTileStreamVisible(peerEntry.tileEl, true);
   };
 
+  let disconnectedTimer = null;
+
   pc.oniceconnectionstatechange = () => {
-    if (pc.iceConnectionState === "failed") {
-      console.error("ICE connection failed for peer:", remoteId);
-      showToast("Lost the connection to a participant.");
+    const state = pc.iceConnectionState;
+
+    if (state === "failed" || state === "closed") {
+      console.warn("ICE connection lost:", remoteId, state);
+      disconnectPeer(remoteId);
+      return;
+    }
+
+    if (state === "disconnected") {
+      clearTimeout(disconnectedTimer);
+
+      // Give WebRTC a few seconds to recover before removing the user.
+      disconnectedTimer = setTimeout(() => {
+        if (pc.iceConnectionState === "disconnected") {
+          console.warn("Peer stayed disconnected:", remoteId);
+          disconnectPeer(remoteId);
+        }
+      }, 8000);
+    }
+
+    if (state === "connected" || state === "completed") {
+      clearTimeout(disconnectedTimer);
+      disconnectedTimer = null;
     }
   };
 
@@ -704,6 +733,81 @@ webcamButton.onclick = async () => {
   setTileStreamVisible(localTile, camEnabled);
 };
 
+function startPresenceHeartbeat() {
+  stopPresenceHeartbeat();
+
+  const touchPresence = async () => {
+    if (!inCall || !peersColRef) return;
+
+    try {
+      await updateDoc(doc(peersColRef, myPeerId), {
+        lastSeenAt: serverTimestamp(),
+        micEnabled,
+      });
+    } catch (err) {
+      console.warn("Presence heartbeat failed:", err);
+    }
+  };
+
+  touchPresence();
+  presenceHeartbeatTimer = setInterval(
+    touchPresence,
+    PRESENCE_HEARTBEAT_MS
+  );
+}
+
+function stopPresenceHeartbeat() {
+  if (presenceHeartbeatTimer) {
+    clearInterval(presenceHeartbeatTimer);
+    presenceHeartbeatTimer = null;
+  }
+}
+
+function startPresenceCleanup() {
+  stopPresenceCleanup();
+
+  const checkStalePeers = () => {
+    if (!inCall) return;
+
+    const now = Date.now();
+
+    for (const [peerId, peerEntry] of peers) {
+      if (
+        peerEntry.lastSeenMs &&
+        now - peerEntry.lastSeenMs > PRESENCE_TIMEOUT_MS
+      ) {
+        console.warn("Removing stale peer:", peerId);
+        disconnectPeer(peerId);
+      }
+    }
+  };
+
+  presenceCleanupTimer = setInterval(
+    checkStalePeers,
+    PRESENCE_HEARTBEAT_MS
+  );
+}
+
+function stopPresenceCleanup() {
+  if (presenceCleanupTimer) {
+    clearInterval(presenceCleanupTimer);
+    presenceCleanupTimer = null;
+  }
+}
+
+function updatePeerPresence(peerId, data) {
+  const peerEntry = peers.get(peerId);
+  if (!peerEntry) return;
+
+  const timestamp = data?.lastSeenAt;
+
+  if (timestamp?.toMillis) {
+    peerEntry.lastSeenMs = timestamp.toMillis();
+  } else if (typeof timestamp === "number") {
+    peerEntry.lastSeenMs = timestamp;
+  }
+}
+
 async function joinRoom() {
   peersColRef = collection(roomRef, "peers");
   const myPeerRef = doc(peersColRef, myPeerId);
@@ -711,6 +815,7 @@ async function joinRoom() {
   try {
     await setDoc(myPeerRef, {
       joinedAt: serverTimestamp(),
+      lastSeenAt: serverTimestamp(),
       micEnabled,
     });
   } catch (err) {
@@ -734,6 +839,7 @@ async function joinRoom() {
           connectToPeer(peerId);
         } else if (change.type === "modified") {
           const data = change.doc.data();
+          updatePeerPresence(peerId, data);
           const peerEntry = peers.get(peerId);
           if (peerEntry?.tileEl) {
             setTileMicState(peerEntry.tileEl, data.micEnabled !== false);
@@ -751,6 +857,9 @@ async function joinRoom() {
   );
 
   setInCallState();
+  startPresenceHeartbeat();
+  startPresenceCleanup();
+
   await requestWakeLock();
   startBackgroundAudioKeepAlive();
 }
@@ -1046,6 +1155,8 @@ function stopScreenShare() {
    ========================================================================= */
 
 hangupButton.onclick = async () => {
+  stopPresenceHeartbeat();
+  stopPresenceCleanup();
   Array.from(peers.keys()).forEach((peerId) => disconnectPeer(peerId));
 
   if (unsubPeers) {
@@ -1088,6 +1199,8 @@ hangupButton.onclick = async () => {
 };
 
 window.addEventListener("beforeunload", () => {
+  stopPresenceHeartbeat();
+  stopPresenceCleanup();
   if (inCall && peersColRef) {
     deleteDoc(doc(peersColRef, myPeerId)).catch(() => {});
   }
