@@ -615,6 +615,10 @@ body.intro-active {
     transition: transform 0.25s ease;
 }
 
+.participant-tile video.front-camera {
+    transform: scaleX(-1);
+}
+
 /* Once JS attaches a stream it adds .has-stream and we swap avatar -> video */
 .participant-tile.has-stream video {
     display: block;

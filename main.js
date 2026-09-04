@@ -331,6 +331,12 @@ function setTileStreamVisible(tileEl, visible) {
   tileEl.classList.toggle("has-stream", visible);
 }
 
+function updateLocalVideoMirror() {
+  const videoEl = localTile?.querySelector("video");
+  if (!videoEl) return;
+  videoEl.classList.toggle("front-camera", currentFacingMode === "user" && !screenStream);
+}
+
 // --- Dynamic "spotlight" grid scaling (requirement #2) -------------------
 // Tapping a tile grows it to fill the main area while every other tile
 // shrinks into a thumbnail strip. Tapping the same tile again restores the
@@ -383,7 +389,11 @@ function attachZoomControl(tile, video) {
       video.style.objectFit = "contain";
     } else {
       video.style.objectFit = "cover";
-      video.style.transform = level === 1 ? "" : `scale(${level})`;
+      const mirrorTransform = video.classList.contains("front-camera")
+        ? "scaleX(-1)"
+        : "";
+      video.style.transform =
+        level === 1 ? mirrorTransform : `${mirrorTransform} scale(${level})`;
     }
 
     zoomBtn.classList.toggle("zoom-active", level === 1.5);
@@ -690,6 +700,7 @@ async function setupMedia() {
     localTile = createTile(myPeerId, { isLocal: true });
     localTile.querySelector("video").srcObject = localStream;
     setTileStreamVisible(localTile, true);
+    updateLocalVideoMirror();
 
     callButton.disabled = false;
     answerButton.disabled = false;
@@ -1028,6 +1039,7 @@ flipcamButton.onclick = async () => {
 
     // Success
     currentFacingMode = newFacingMode;
+    updateLocalVideoMirror();
     flipErrorCount = 0;
     showToast("Camera flipped successfully", "info");
     
@@ -1056,6 +1068,7 @@ flipcamButton.onclick = async () => {
         const sender = pc.getSenders().find(s => s.track?.kind === "video");
         if (sender) sender.replaceTrack(rollbackTrack);
       });
+      updateLocalVideoMirror();
     } catch (rollbackErr) {
       console.error("Failed to recover previous camera track:", rollbackErr);
     }
@@ -1126,6 +1139,7 @@ sharescreenButton.onclick = async () => {
       });
 
       if (localTile) localTile.querySelector("video").srcObject = screenStream;
+      updateLocalVideoMirror();
       flipcamButton.disabled = true;
       sharescreenButton.classList.add("active");
       screenTrack.onended = () => stopScreenShare();
@@ -1155,6 +1169,7 @@ function stopScreenShare() {
       }
     });
     if (localTile) localTile.querySelector("video").srcObject = localStream;
+    updateLocalVideoMirror();
   }
   sharescreenButton.classList.remove("active");
 }
