@@ -303,6 +303,13 @@ function updateParticipantCount() {
   const total = participantTotal();
   callGrid.dataset.count = String(Math.min(total, MAX_PEERS));
 
+  if (total < 2) {
+    callGrid.classList.remove("has-focus");
+    callGrid
+      .querySelectorAll(".participant-tile.focused")
+      .forEach((tile) => tile.classList.remove("focused"));
+  }
+
   if (!inCall) {
     activeUser.textContent = "Belum dimulai · 0 peserta";
     liveDot.classList.remove("live");
@@ -329,6 +336,8 @@ function setTileStreamVisible(tileEl, visible) {
 // shrinks into a thumbnail strip. Tapping the same tile again restores the
 // even grid. Only one tile can be focused at a time.
 function toggleFocusTile(tile) {
+  if (participantTotal() < 2) return;
+
   const alreadyFocused = tile.classList.contains("focused");
   callGrid
     .querySelectorAll(".participant-tile.focused")
