@@ -503,7 +503,7 @@ body.intro-active {
    Other participants become small tiles in a right-side column. */
 .call-grid.has-focus {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(76px, 280px);
+    grid-template-columns: minmax(0, 1fr) minmax(76px, 300px);
     grid-template-rows: repeat(8, minmax(0, 1fr));
     grid-auto-flow: row;
     gap: 8px;
