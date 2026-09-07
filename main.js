@@ -14,13 +14,13 @@ import {
 import "./zoom_kw.css";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDHWKvjrsDhjw12c6ZEb36ONST_PQXt7K8",
-  authDomain: "zoomkw-c661b.firebaseapp.com",
-  projectId: "zoomkw-c661b",
-  storageBucket: "zoomkw-c661b.firebasestorage.app",
-  messagingSenderId: "875237020278",
-  appId: "1:875237020278:web:8933cdbb2e138950434557",
-  measurementId: "G-1RWSGLEBGH",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 const app = initializeApp(firebaseConfig);
