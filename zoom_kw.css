@@ -584,8 +584,8 @@ body.intro-active {
 
 .participant-tile {
     position: relative;
-    background: #23262e;
-    border: 1px solid #2a2e37;
+    background: #191919;
+    border: 1px solid #303132;
     border-radius: 16px;
     overflow: hidden;
     display: flex;
