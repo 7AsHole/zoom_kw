@@ -1,10 +1,10 @@
-/* ---- Tokens ----
-   --bg      #14161b  base app background
-   --panel   #1c1f26  sidebar / header surface
-   --line    #2a2e37  hairline borders
-   --tile    #23262e  video tile surface
-   --text    #e9eaed  primary text
-   --dim     #8b909c  secondary text
+/*color palette
+   --bg      #141414  base app background
+   --panel   #1c1c1c  sidebar / header surface
+   --line    #2e2e2e  hairline borders (matched to avatar)
+   --tile    #232323  video tile surface
+   --text    #e9e9e9  primary text
+   --dim     #8b8b8b  secondary text
    --accent  #34d399  "create call" / live state (emerald)
    --accent-dim #1c3b31 accent surface for badges
 */
@@ -18,8 +18,8 @@ html, body {
     width: 100%;
     margin: 0;
     padding: 0;
-    background: #14161b;
-    color: #e9eaed;
+    background: #141414;
+    color: #e9e9e9;
     font-family: "Inter", -apple-system, sans-serif;
 }
 
@@ -54,9 +54,9 @@ html, body {
     width: 100%;
     padding: 12px 14px;
     border-radius: 12px;
-    background: #1c1f26;
-    border: 1px solid #2a2e37;
-    color: #e9eaed;
+    background: #1c1c1c;
+    border: 1px solid #2e2e2e;
+    color: #e9e9e9;
     font-size: 13px;
     line-height: 1.4;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -115,7 +115,7 @@ body.intro-active {
     align-items: center;
     justify-content: center;
     gap: 18px;
-    background: radial-gradient(circle at 50% 42%, #1c1f26 0%, #14161b 68%);
+    background: radial-gradient(circle at 50% 42%, #1c1c1c 0%, #141414 68%);
     transition: opacity 0.8s ease, visibility 0.8s ease;
 }
 
@@ -137,7 +137,7 @@ body.intro-active {
     font-weight: 700;
     font-size: clamp(48px, 11vw, 112px);
     letter-spacing: -0.03em;
-    color: #e9eaed;
+    color: #e9e9e9;
     line-height: 1;
     opacity: 0;
     transform: rotate(-4deg) scale(0.82) translateY(14px);
@@ -154,7 +154,7 @@ body.intro-active {
     border-radius: 10px;
     padding: 4px 10px;
     margin-bottom: clamp(10px, 3vw, 24px);
-    background: #1c1f26;
+    background: #1c1c1c;
     opacity: 0;
     transform: rotate(8deg) translateY(-6px) scale(0.7);
     animation: introKwIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.38s forwards;
@@ -164,7 +164,7 @@ body.intro-active {
     margin: 0;
     font-size: 13px;
     letter-spacing: 0.03em;
-    color: #8b909c;
+    color: #8b8b8b;
     opacity: 0;
     animation: introTagIn 0.6s ease 0.85s forwards;
 }
@@ -205,9 +205,9 @@ body.intro-active {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background-color: #14161b;
+    background-color: #171717;
     border: none;
-    border-right: 1px solid #2a2e37;
+    border-right: 1px solid #2e2e2e;
     min-width: 0;
     min-height: 100vh;
     overflow-y: auto;
@@ -254,9 +254,9 @@ body.intro-active {
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    border: 1px solid #2a2e37;
-    background: #23262e;
-    color: #8b909c;
+    border: 1px solid #2e2e2e;
+    background: #232323;
+    color: #8b8b8b;
     font-family: "Inter", sans-serif;
     font-size: 12px;
     font-weight: 600;
@@ -266,9 +266,9 @@ body.intro-active {
 }
 
 .help-btn:hover {
-    background: #2a2e37;
-    color: #e9eaed;
-    border-color: #3a3f4a;
+    background: #2e2e2e;
+    color: #e9e9e9;
+    border-color: #3a3a3a;
 }
 
 .help-modal {
@@ -288,7 +288,7 @@ body.intro-active {
 .help-modal-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(10, 11, 14, 0.6);
+    background: rgba(10, 10, 10, 0.6);
 }
 
 .help-modal-panel {
@@ -297,8 +297,8 @@ body.intro-active {
     width: min(92vw, 440px);
     max-height: 82vh;
     overflow-y: auto;
-    background: #1c1f26;
-    border: 1px solid #2a2e37;
+    background: #1c1c1c;
+    border: 1px solid #2e2e2e;
     border-radius: 16px;
     padding: 20px 22px 24px;
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
@@ -327,14 +327,14 @@ body.intro-active {
     border-radius: 8px;
     border: none;
     background: transparent;
-    color: #8b909c;
+    color: #8b8b8b;
     cursor: pointer;
     font-size: 14px;
 }
 
 .help-modal-close:hover {
-    background: #23262e;
-    color: #e9eaed;
+    background: #232323;
+    color: #e9e9e9;
 }
 
 .help-steps {
@@ -345,11 +345,11 @@ body.intro-active {
     gap: 10px;
     font-size: 13px;
     line-height: 1.5;
-    color: #c7cad1;
+    color: #c7c7c7;
 }
 
 .help-steps strong {
-    color: #e9eaed;
+    color: #e9e9e9;
 }
 
 .stage-meta {
@@ -357,7 +357,7 @@ body.intro-active {
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: #8b909c;
+    color: #8b8b8b;
 }
 
 .liveDot {
@@ -386,20 +386,20 @@ body.intro-active {
     max-width: 40vw;
     padding: 10px 14px;
     border-radius: 10px;
-    border: 1px solid #2a2e37;
-    background: #1c1f26;
-    color: #e9eaed;
+    border: 1px solid #2e2e2e;
+    background: #1c1c1c;
+    color: #e9e9e9;
     font-family: "Inter", sans-serif;
     font-size: 13px;
 }
 
 .call-setup #callInput::placeholder {
-    color: #8b909c;
+    color: #8b8b8b;
 }
 
 .call-setup #callInput:focus {
     outline: none;
-    border-color: #a5b9e9;
+    border-color: #c3c3c3;
 }
 
 .setup-btn {
@@ -409,7 +409,7 @@ body.intro-active {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    border: 1px solid #2a2e37;
+    border: 1px solid #2e2e2e;
     background: #1c3b31;
     color: #34d399;
     cursor: pointer;
@@ -424,7 +424,7 @@ body.intro-active {
 .setup-btn#callButton {
     border-color: #333333;
     background: #2a2a2a;
-    color: #e9eaed;
+    color: #e9e9e9;
 }
 
 .setup-btn#copyLink:hover:not(:disabled),
@@ -584,7 +584,7 @@ body.intro-active {
 
 .participant-tile {
     position: relative;
-    background: #191919;
+    background: #212121;
     border: 1px solid #303132;
     border-radius: 16px;
     overflow: hidden;
@@ -596,11 +596,11 @@ body.intro-active {
 }
 
 .participant-tile:hover {
-    border-color: #a5b9e9;
+    border-color: #c3c3c3;
 }
 
 .participant-tile.focused {
-    border-color: #a5b9e9;
+    border-color: #c3c3c3;
 }
 
 .participant-tile video {
@@ -656,7 +656,7 @@ body.intro-active {
     gap: 8px;
     padding: 6px 10px;
     border-radius: 8px;
-    background: rgba(20, 22, 27, 0.72);
+    background: rgba(20, 20, 20, 0.72);
     font-size: 13px;
     z-index: 2;
 }
@@ -673,7 +673,7 @@ body.intro-active {
 }
 
 .mic-icon.active {
-    color: #8b909c;
+    color: #8b8b8b;
 }
 
 /* ---------- Per-tile digital zoom (local camera/screen only) ---------- */
@@ -686,9 +686,9 @@ body.intro-active {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: rgba(20, 22, 27, 0.72);
-    color: #e9eaed;
-    border: 1px solid #2a2e37;
+    background: rgba(20, 20, 20, 0.72);
+    color: #e9e9e9;
+    border: 1px solid #2e2e2e;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -697,7 +697,7 @@ body.intro-active {
 }
 
 .zoom-btn:hover {
-    background: rgba(35, 38, 46, 0.9);
+    background: rgba(35, 35, 35, 0.9);
 }
 
 .zoom-btn.zoom-active {
@@ -757,7 +757,7 @@ body.intro-active {
     height: 46px;
     border-radius: 50%;
     background: #2a2a2a;
-    color: #e9eaed;
+    color: #e9e9e9;
     border: none;
     cursor: pointer;
     font-size: 18px;
