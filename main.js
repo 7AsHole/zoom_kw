@@ -368,7 +368,7 @@ function clearFocusIfNeeded(tile) {
 // else's camera/screen - only their own. It's a CSS scale of the preview
 // element itself, so it applies equally whether the local video is the
 // webcam or an active screen share (same <video> element either way).
-const ZOOM_LEVELS = [1, 1.5, "contain"];
+const ZOOM_LEVELS = [1, 1.25, "contain"];
 
 function attachZoomControl(tile, video) {
   const zoomBtn = document.createElement("button");
@@ -396,11 +396,11 @@ function attachZoomControl(tile, video) {
         level === 1 ? mirrorTransform : `${mirrorTransform} scale(${level})`;
     }
 
-    zoomBtn.classList.toggle("zoom-active", level === 1.5);
+    zoomBtn.classList.toggle("zoom-active", level === 1.25);
 
     zoomBtn.title =
-      level === 1.5
-        ? "Zoomed 1.5x — tap to change"
+      level === 1.25
+        ? "Zoomed 1.25x — tap to change"
         : level === "contain"
           ? "Fit video — tap to change"
           : "Zoom video";
@@ -942,7 +942,13 @@ function setInCallState() {
 }
 
 micButton.onclick = () => {
+    if (!localStream) {
+    showToast("Turn on your camera first.", "info");
+    return;
+  }
+  
   if (!localStream) return;
+
   micEnabled = !micEnabled;
   localStream.getAudioTracks().forEach((track) => (track.enabled = micEnabled));
   micButton.classList.toggle("off", !micEnabled);
@@ -1099,7 +1105,7 @@ sharescreenButton.onclick = async () => {
   if (sharescreenButton.disabled) return;
 
   if (!localStream) {
-    showToast("Turn on your camera/mic first.", "info");
+    showToast("Turn on your camera first.", "info");
     return;
   }
 
