@@ -610,7 +610,7 @@ body.intro-active {
     height: 100%;
     object-fit: cover;
     display: none;
-    background: #23262e;
+    background: #191919;
     transform-origin: center center;
     transition: transform 0.25s ease;
 }
