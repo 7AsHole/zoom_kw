@@ -870,22 +870,27 @@ async function connectToPeer(remoteId) {
   if (participantTotal() >= MAX_PEERS) return; // room is full
 
   const pc = new RTCPeerConnection(servers);
-  const audioTransceiver = pc.addTransceiver("audio", { direction: "sendrecv" });
-  const camTransceiver = pc.addTransceiver("video", { direction: "sendrecv" });
-  const screenTransceiver = pc.addTransceiver("video", { direction: "sendrecv" });
 
-  const audioSender = audioTransceiver.sender;
-  const camSender = camTransceiver.sender;
-  const screenSender = screenTransceiver.sender;
+  const micTrack = localStream?.getAudioTracks()[0];
+  const camTrack = localStream?.getVideoTracks()[0];
 
-  // 2. Attach existing tracks to the primary lanes if they exist
-  if (localStream) {
-    const micTrack = localStream.getAudioTracks()[0];
-    if (micTrack) audioSender.replaceTrack(micTrack);
-
-    const camTrack = localStream.getVideoTracks()[0];
-    if (camTrack) camSender.replaceTrack(camTrack);
+  // 1. Audio Lane (Inject mic track immediately if available)
+  if (micTrack) {
+    pc.addTransceiver(micTrack, { direction: "sendrecv", streams: [localStream] });
+  } else {
+    pc.addTransceiver("audio", { direction: "sendrecv" });
   }
+
+  // 2. Camera Lane (Inject camera track immediately if available)
+  if (camTrack) {
+    pc.addTransceiver(camTrack, { direction: "sendrecv", streams: [localStream] });
+  } else {
+    pc.addTransceiver("video", { direction: "sendrecv" });
+  }
+
+  // 3. Screen Share Lane (Always reserved empty for later)
+  const screenTransceiver = pc.addTransceiver("video", { direction: "sendrecv" });
+  const screenSender = screenTransceiver.sender;
 
   const peerEntry = {
     pc,
@@ -893,14 +898,13 @@ async function connectToPeer(remoteId) {
     screenStream: new MediaStream(),
     tileEl: null,
     screenTileEl: null,
-    screenSender, // Saved so sharescreenButton.onclick can push tracks here later
+    screenSender, // Save this so we can easily add screen shares later
     unsubs: [],
     pendingCandidates: [],
     lastSeenMs: Date.now(),
   };
   peers.set(remoteId, peerEntry);
 
-  // 3. Route incoming tracks to the correct video elements based on their lane
   pc.ontrack = (event) => {
     const transceivers = pc.getTransceivers();
 
@@ -908,7 +912,6 @@ async function connectToPeer(remoteId) {
     if (event.transceiver === transceivers[2]) {
       peerEntry.screenStream.addTrack(event.track);
 
-      // If the UI tile is already created by Firebase, trigger the video to play
       if (peerEntry.screenTileEl) {
         const videoEl = peerEntry.screenTileEl.querySelector("video");
         videoEl.srcObject = peerEntry.screenStream;
@@ -933,7 +936,6 @@ async function connectToPeer(remoteId) {
   };
 
   let disconnectedTimer = null;
-
   pc.oniceconnectionstatechange = () => {
     const state = pc.iceConnectionState;
 
