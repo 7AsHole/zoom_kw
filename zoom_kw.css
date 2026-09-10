@@ -676,6 +676,16 @@ body.intro-active {
     color: #8b8b8b;
 }
 
+.share-icon {
+    display: none;
+    font-size: 12px;
+    color: #34d399;
+}
+
+.share-icon.sharing {
+    display: inline-block;
+}
+
 /* ---------- Per-tile digital zoom (local camera/screen only) ---------- */
 
 .zoom-btn {
@@ -703,6 +713,97 @@ body.intro-active {
 .zoom-btn.zoom-active {
     color: #34d399;
     border-color: #1c3b31;
+}
+
+/* ---------- "..." tile options button + Size/Volume popup ---------- */
+/* Mirrors the zoom button: "..." sits top-left, zoom stays top-right.
+   Right-clicking (or long-pressing via this button on touch devices) opens
+   the same popup - it's the mobile-friendly entry point for people who
+   can't right-click. */
+
+.tile-menu-btn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 3;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(20, 20, 20, 0.72);
+    color: #e9e9e9;
+    border: 1px solid #2e2e2e;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.tile-menu-btn:hover {
+    background: rgba(35, 35, 35, 0.9);
+}
+
+.tile-menu {
+    position: fixed;
+    z-index: 4000;
+    width: 240px;
+    max-width: calc(100vw - 24px);
+    padding: 14px;
+    border-radius: 12px;
+    background: #1c1c1c;
+    border: 1px solid #303132;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.tile-menu[hidden] {
+    display: none;
+}
+
+.tile-menu-row[hidden] {
+    display: none;
+}
+
+.tile-menu-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tile-menu-row label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #8b8b8b;
+}
+
+.tile-menu-value {
+    color: #e9e9e9;
+    font-variant-numeric: tabular-nums;
+}
+
+.tile-menu-size {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #303132;
+    background: #212121;
+    color: #e9e9e9;
+    font-size: 13px;
+}
+
+.tile-menu-volume,
+.tile-menu-screenvolume {
+    width: 100%;
+    accent-color: #34d399;
+}
+
+.tile-menu-volume:disabled,
+.tile-menu-screenvolume:disabled {
+    opacity: 0.4;
 }
 
 /* Grid gets tighter as more tiles pack in, so shrink avatars a bit past 4 */
@@ -894,6 +995,18 @@ body.intro-active {
         font-size: 11px;
         top: 8px;
         right: 8px;
+    }
+
+    .tile-menu-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 12px;
+        top: 8px;
+        left: 8px;
+    }
+
+    .tile-menu {
+        width: 210px;
     }
 
     /* shrink the footer bar so it doesn't dominate small screens */

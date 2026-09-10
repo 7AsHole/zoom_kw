@@ -326,6 +326,20 @@ function setTileMicState(tileEl, enabled) {
   icon.classList.toggle("active", enabled);
 }
 
+// Tracks whether a tile's participant is currently sharing their screen,
+// and specifically whether that share includes system/tab audio - the menu
+// only offers a "Screen share volume" slider when the latter is true (that's
+// the only time a remote tile's incoming audio track is actually screen
+// audio rather than their mic - see sharescreenButton below).
+function setTileScreenShareState(tileEl, sharingScreen, sharingScreenAudio) {
+  if (!tileEl) return;
+  tileEl.dataset.sharingScreen = sharingScreen ? "true" : "false";
+  tileEl.dataset.sharingScreenAudio = sharingScreenAudio ? "true" : "false";
+  const icon = tileEl.querySelector(".share-icon");
+  if (icon) icon.classList.toggle("sharing", sharingScreen);
+  refreshTileMenuIfOpen(tileEl);
+}
+
 function setTileStreamVisible(tileEl, visible) {
   if (!tileEl) return;
   tileEl.classList.toggle("has-stream", visible);
@@ -363,51 +377,318 @@ function clearFocusIfNeeded(tile) {
   }
 }
 
-// --- Per-tile digital zoom, local user only (requirement #3) -------------
-// Only the local tile gets a zoom control, so nobody can zoom someone
-// else's camera/screen - only their own. It's a CSS scale of the preview
-// element itself, so it applies equally whether the local video is the
-// webcam or an active screen share (same <video> element either way).
+// --- Per-tile digital zoom (requirement #3) -------------------------------
+// This is a CSS scale of the local <video> preview element only, so it's
+// safe to offer on every tile (yours and everyone else's) - it never
+// changes what's actually sent over the wire, only how it's displayed for
+// you. It applies equally whether that tile's video is the webcam or an
+// active screen share (same <video> element either way).
 const ZOOM_LEVELS = [1, 1.25, "contain"];
+
+// tile -> index into ZOOM_LEVELS. Shared so the magnifying-glass button and
+// the "Size" dropdown in the tile options menu always agree on state.
+const tileZoomIndex = new WeakMap();
+
+function applyZoomLevel(tile, video, index) {
+  const level = ZOOM_LEVELS[index];
+
+  if (level === "contain") {
+    video.style.transform = "";
+    video.style.objectFit = "contain";
+  } else {
+    video.style.objectFit = "cover";
+    const mirrorTransform = video.classList.contains("front-camera")
+      ? "scaleX(-1)"
+      : "";
+    video.style.transform =
+      level === 1 ? mirrorTransform : `${mirrorTransform} scale(${level})`;
+  }
+
+  tileZoomIndex.set(tile, index);
+  return level;
+}
+
+function zoomButtonLabel(level) {
+  return level === 1.25
+    ? "Zoomed 1.25x — tap to change"
+    : level === "contain"
+      ? "Fit video — tap to change"
+      : "Zoom video";
+}
 
 function attachZoomControl(tile, video) {
   const zoomBtn = document.createElement("button");
   zoomBtn.type = "button";
   zoomBtn.className = "zoom-btn";
-  zoomBtn.title = "Zoom your view";
-  zoomBtn.setAttribute("aria-label", "Zoom your own camera or screen");
+  zoomBtn.title = "Zoom video";
+  zoomBtn.setAttribute("aria-label", "Zoom this camera or screen share");
   zoomBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>';
 
-  let zoomIndex = 0;
   zoomBtn.addEventListener("click", (event) => {
     event.stopPropagation();
-    zoomIndex = (zoomIndex + 1) % ZOOM_LEVELS.length;
-    const level = ZOOM_LEVELS[zoomIndex];
-
-    if (level === "contain") {
-      video.style.transform = "";
-      video.style.objectFit = "contain";
-    } else {
-      video.style.objectFit = "cover";
-      const mirrorTransform = video.classList.contains("front-camera")
-        ? "scaleX(-1)"
-        : "";
-      video.style.transform =
-        level === 1 ? mirrorTransform : `${mirrorTransform} scale(${level})`;
-    }
-
+    const nextIndex = ((tileZoomIndex.get(tile) ?? 0) + 1) % ZOOM_LEVELS.length;
+    const level = applyZoomLevel(tile, video, nextIndex);
     zoomBtn.classList.toggle("zoom-active", level === 1.25);
-
-    zoomBtn.title =
-      level === 1.25
-        ? "Zoomed 1.25x — tap to change"
-        : level === "contain"
-          ? "Fit video — tap to change"
-          : "Zoom video";
-      });
+    zoomBtn.title = zoomButtonLabel(level);
+    syncTileMenuSize(tile);
+  });
 
   tile.appendChild(zoomBtn);
   return zoomBtn;
+}
+
+/* =========================================================================
+   2b. Per-tile options menu: right-click (desktop) or the "..." button
+   (mobile) opens a small popup with Size and Volume controls. Both are
+   purely local/view-side - they never affect what other participants see
+   or hear.
+   ========================================================================= */
+
+// tile -> { source, volumeGain, screenGain }. Remote audio is routed through
+// this graph instead of letting the <video> element play it directly, which
+// is what makes a per-participant volume slider possible.
+const tileAudioGains = new WeakMap();
+let audioMixContext = null;
+
+function getAudioMixContext() {
+  if (!audioMixContext) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioMixContext = new AudioContextClass();
+  }
+  if (audioMixContext.state === "suspended") {
+    audioMixContext.resume().catch(() => {});
+  }
+  return audioMixContext;
+}
+
+// Chains two gain stages per remote tile: a general "Volume" control, and a
+// second "Screen share volume" stage that only shows up in the UI while
+// that participant is sharing their screen (see sharescreenButton below for
+// why a single incoming audio track can represent either mic or screen
+// audio, but never both at once).
+function ensureTileAudioGraph(tile, stream) {
+  if (tileAudioGains.has(tile)) return tileAudioGains.get(tile);
+  if (!stream.getAudioTracks().length) return null;
+
+  try {
+    const ctx = getAudioMixContext();
+    const source = ctx.createMediaStreamSource(stream);
+    const volumeGain = ctx.createGain();
+    const screenGain = ctx.createGain();
+    volumeGain.gain.value = 1;
+    screenGain.gain.value = 1;
+    source.connect(volumeGain).connect(screenGain).connect(ctx.destination);
+
+    const entry = { source, volumeGain, screenGain };
+    tileAudioGains.set(tile, entry);
+    return entry;
+  } catch (err) {
+    console.warn("Could not set up per-tile volume control:", err);
+    return null;
+  }
+}
+
+function teardownTileAudioGraph(tile) {
+  const gains = tileAudioGains.get(tile);
+  if (!gains) return;
+  try {
+    gains.source.disconnect();
+    gains.volumeGain.disconnect();
+    gains.screenGain.disconnect();
+  } catch (err) {
+    /* already disconnected - fine */
+  }
+  tileAudioGains.delete(tile);
+}
+
+function setTileVolume(tile, factor) {
+  const gains = tileAudioGains.get(tile);
+  if (gains) gains.volumeGain.gain.value = factor;
+}
+
+function setTileScreenShareVolume(tile, factor) {
+  const gains = tileAudioGains.get(tile);
+  if (gains) gains.screenGain.gain.value = factor;
+}
+
+function attachMenuButton(tile, video) {
+  const menuBtn = document.createElement("button");
+  menuBtn.type = "button";
+  menuBtn.className = "tile-menu-btn";
+  menuBtn.title = "Size & volume";
+  menuBtn.setAttribute("aria-label", "Open size and volume options for this tile");
+  menuBtn.innerHTML = '<i class="fa-solid fa-ellipsis"></i>';
+
+  menuBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openTileMenu(tile, video, menuBtn, null);
+  });
+
+  tile.appendChild(menuBtn);
+  return menuBtn;
+}
+
+let tileMenuEl = null;
+let tileMenuTargetTile = null;
+
+function ensureTileMenu() {
+  if (tileMenuEl) return tileMenuEl;
+
+  tileMenuEl = document.createElement("div");
+  tileMenuEl.className = "tile-menu";
+  tileMenuEl.hidden = true;
+  tileMenuEl.innerHTML = `
+    <div class="tile-menu-row">
+      <label for="tileMenuSize">Size</label>
+      <select id="tileMenuSize" class="tile-menu-size">
+        <option value="0">1x</option>
+        <option value="1">1.25x</option>
+        <option value="2">Fit (contain)</option>
+      </select>
+    </div>
+    <div class="tile-menu-row tile-menu-volume-row">
+      <label for="tileMenuVolume">Volume <span class="tile-menu-value">100%</span></label>
+      <input id="tileMenuVolume" class="tile-menu-volume" type="range" min="0" max="200" step="5" value="100" />
+    </div>
+    <div class="tile-menu-row tile-menu-screenvolume-row" hidden>
+      <label for="tileMenuScreenVolume">Screen share volume <span class="tile-menu-value">100%</span></label>
+      <input id="tileMenuScreenVolume" class="tile-menu-screenvolume" type="range" min="0" max="200" step="5" value="100" />
+    </div>
+  `;
+  document.body.appendChild(tileMenuEl);
+
+  const sizeSelect = tileMenuEl.querySelector(".tile-menu-size");
+  const volumeInput = tileMenuEl.querySelector(".tile-menu-volume");
+  const volumeValue = tileMenuEl.querySelector(".tile-menu-volume-row .tile-menu-value");
+  const screenVolumeInput = tileMenuEl.querySelector(".tile-menu-screenvolume");
+  const screenVolumeValue = tileMenuEl.querySelector(".tile-menu-screenvolume-row .tile-menu-value");
+
+  sizeSelect.addEventListener("change", () => {
+    if (!tileMenuTargetTile) return;
+    const video = tileMenuTargetTile.querySelector("video");
+    const zoomBtn = tileMenuTargetTile.querySelector(".zoom-btn");
+    const level = applyZoomLevel(tileMenuTargetTile, video, Number(sizeSelect.value));
+    if (zoomBtn) {
+      zoomBtn.classList.toggle("zoom-active", level === 1.25);
+      zoomBtn.title = zoomButtonLabel(level);
+    }
+  });
+
+  volumeInput.addEventListener("input", () => {
+    if (!tileMenuTargetTile) return;
+    volumeValue.textContent = `${volumeInput.value}%`;
+    setTileVolume(tileMenuTargetTile, Number(volumeInput.value) / 100);
+  });
+
+  screenVolumeInput.addEventListener("input", () => {
+    if (!tileMenuTargetTile) return;
+    screenVolumeValue.textContent = `${screenVolumeInput.value}%`;
+    setTileScreenShareVolume(tileMenuTargetTile, Number(screenVolumeInput.value) / 100);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (tileMenuEl.hidden) return;
+    if (tileMenuEl.contains(event.target)) return;
+    if (event.target.closest(".tile-menu-btn")) return;
+    closeTileMenu();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeTileMenu();
+  });
+
+  window.addEventListener("resize", () => {
+    if (tileMenuEl && !tileMenuEl.hidden) closeTileMenu();
+  });
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (tileMenuEl && !tileMenuEl.hidden) closeTileMenu();
+    },
+    true
+  );
+
+  return tileMenuEl;
+}
+
+function closeTileMenu() {
+  if (tileMenuEl) tileMenuEl.hidden = true;
+  tileMenuTargetTile = null;
+}
+
+function openTileMenu(tile, video, anchorBtn, clickPoint) {
+  const menu = ensureTileMenu();
+  tileMenuTargetTile = tile;
+
+  const isLocal = tile.dataset.peerId === myPeerId;
+  const sharingScreenAudio = tile.dataset.sharingScreenAudio === "true";
+  const gains = tileAudioGains.get(tile);
+
+  const volumeRow = menu.querySelector(".tile-menu-volume-row");
+  const screenVolumeRow = menu.querySelector(".tile-menu-screenvolume-row");
+  volumeRow.hidden = isLocal;
+  screenVolumeRow.hidden = isLocal || !sharingScreenAudio;
+
+  const sizeSelect = menu.querySelector(".tile-menu-size");
+  sizeSelect.value = String(tileZoomIndex.get(tile) ?? 0);
+
+  const volumeInput = menu.querySelector(".tile-menu-volume");
+  const volumeValue = menu.querySelector(".tile-menu-volume-row .tile-menu-value");
+  const volumePercent = gains ? Math.round(gains.volumeGain.gain.value * 100) : 100;
+  volumeInput.value = String(volumePercent);
+  volumeValue.textContent = `${volumePercent}%`;
+  volumeInput.disabled = !gains;
+
+  const screenVolumeInput = menu.querySelector(".tile-menu-screenvolume");
+  const screenVolumeValue = menu.querySelector(".tile-menu-screenvolume-row .tile-menu-value");
+  const screenVolumePercent = gains ? Math.round(gains.screenGain.gain.value * 100) : 100;
+  screenVolumeInput.value = String(screenVolumePercent);
+  screenVolumeValue.textContent = `${screenVolumePercent}%`;
+  screenVolumeInput.disabled = !gains;
+
+  menu.hidden = false;
+
+  let x;
+  let y;
+  if (anchorBtn) {
+    const rect = anchorBtn.getBoundingClientRect();
+    x = rect.left;
+    y = rect.bottom + 6;
+  } else if (clickPoint) {
+    x = clickPoint.x;
+    y = clickPoint.y;
+  } else {
+    const rect = tile.getBoundingClientRect();
+    x = rect.left + 12;
+    y = rect.top + 12;
+  }
+
+  requestAnimationFrame(() => {
+    if (menu.hidden) return; // could have been closed already
+    const menuRect = menu.getBoundingClientRect();
+    const maxX = Math.max(8, window.innerWidth - menuRect.width - 8);
+    const maxY = Math.max(8, window.innerHeight - menuRect.height - 8);
+    menu.style.left = `${Math.min(Math.max(8, x), maxX)}px`;
+    menu.style.top = `${Math.min(Math.max(8, y), maxY)}px`;
+  });
+}
+
+// Keeps the Size dropdown correct if the magnifying-glass button is used
+// while the menu for that same tile happens to be open.
+function syncTileMenuSize(tile) {
+  if (!tileMenuEl || tileMenuEl.hidden || tileMenuTargetTile !== tile) return;
+  tileMenuEl.querySelector(".tile-menu-size").value = String(tileZoomIndex.get(tile) ?? 0);
+}
+
+// Called when a remote peer's screenSharing state changes, so an already
+// open menu updates live instead of showing a stale "Screen share volume"
+// row.
+function refreshTileMenuIfOpen(tile) {
+  if (!tileMenuEl || tileMenuEl.hidden || tileMenuTargetTile !== tile) return;
+  openTileMenu(tile, tile.querySelector("video"), null, {
+    x: parseFloat(tileMenuEl.style.left) || 0,
+    y: parseFloat(tileMenuEl.style.top) || 0,
+  });
 }
 
 function createTile(peerId, { isLocal }) {
@@ -417,10 +698,22 @@ function createTile(peerId, { isLocal }) {
   const tile = document.createElement("div");
   tile.className = "participant-tile";
   tile.dataset.peerId = peerId;
+  tile.dataset.sharingScreen = "false";
+  tile.dataset.sharingScreenAudio = "false";
 
   tile.addEventListener("click", (event) => {
-    if (event.target.closest(".zoom-btn")) return; // handled separately
+    if (event.target.closest(".zoom-btn") || event.target.closest(".tile-menu-btn")) return; // handled separately
     toggleFocusTile(tile);
+  });
+
+  // Right-click opens the same Size/Volume popup as the "..." button below,
+  // for anyone with a mouse.
+  tile.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    openTileMenu(tile, tile.querySelector("video"), null, {
+      x: event.clientX,
+      y: event.clientY,
+    });
   });
 
   const video = document.createElement("video");
@@ -438,15 +731,21 @@ function createTile(peerId, { isLocal }) {
   const micIcon = document.createElement("i");
   micIcon.className = "mic-icon fa-solid fa-microphone active";
 
+  const shareIcon = document.createElement("i");
+  shareIcon.className = "share-icon fa-solid fa-display";
+  shareIcon.title = "Sharing screen";
+
   const nameSpan = document.createElement("span");
   nameSpan.textContent = label;
 
-  tag.append(micIcon, nameSpan);
+  tag.append(micIcon, shareIcon, nameSpan);
   tile.append(video, avatar, tag);
 
-  // Only the tile owner can zoom their own camera/screen - never added to
-  // remote tiles, so nobody else can control your view.
-  attachZoomControl(tile, video); 
+  // Zoom (right) and the "..." options menu (left) are local view controls
+  // only - offered on every tile, yours and everyone else's, since neither
+  // one changes what's actually sent to anybody.
+  attachZoomControl(tile, video);
+  attachMenuButton(tile, video);
 
   callGrid.appendChild(tile);
   updateParticipantCount();
@@ -457,6 +756,8 @@ function createTile(peerId, { isLocal }) {
 function removeTile(tileEl) {
   if (!tileEl) return;
   clearFocusIfNeeded(tileEl);
+  if (tileMenuTargetTile === tileEl) closeTileMenu();
+  teardownTileAudioGraph(tileEl);
   if (tileEl.parentElement) tileEl.remove();
   updateParticipantCount();
 }
@@ -521,9 +822,18 @@ async function connectToPeer(remoteId) {
     });
     if (!peerEntry.tileEl) {
       peerEntry.tileEl = createTile(remoteId, { isLocal: false });
-      peerEntry.tileEl.querySelector("video").srcObject = peerEntry.stream;
+      const videoEl = peerEntry.tileEl.querySelector("video");
+      videoEl.srcObject = peerEntry.stream;
+      // Playback runs through the Web Audio gain graph (see
+      // ensureTileAudioGraph) so the per-tile Volume slider works - keep the
+      // <video> element itself muted or its audio would play twice.
+      videoEl.muted = true;
     }
     setTileStreamVisible(peerEntry.tileEl, true);
+
+    if (event.track.kind === "audio") {
+      ensureTileAudioGraph(peerEntry.tileEl, peerEntry.stream);
+    }
   };
 
   let disconnectedTimer = null;
@@ -837,6 +1147,8 @@ async function joinRoom() {
       joinedAt: serverTimestamp(),
       lastSeenAt: serverTimestamp(),
       micEnabled,
+      sharingScreen: false,
+      sharingScreenAudio: false,
     });
   } catch (err) {
     console.error("Failed to register in room:", err);
@@ -863,6 +1175,11 @@ async function joinRoom() {
           const peerEntry = peers.get(peerId);
           if (peerEntry?.tileEl) {
             setTileMicState(peerEntry.tileEl, data.micEnabled !== false);
+            setTileScreenShareState(
+              peerEntry.tileEl,
+              !!data.sharingScreen,
+              !!data.sharingScreenAudio
+            );
           }
         } else if (change.type === "removed") {
           knownRemotePeers.delete(peerId);
@@ -1136,19 +1453,46 @@ sharescreenButton.onclick = async () => {
 
     try {
       const screenTrack = screenStream.getVideoTracks()[0];
+      // Some browsers (mainly Chrome, and only for a shared tab/whole
+      // screen) let the user opt in to sharing system/tab audio - if it's
+      // there, swap it in for the outgoing mic track so participants can
+      // hear it too. If not, the mic keeps flowing as normal.
+      const screenAudioTrack = screenStream.getAudioTracks()[0] || null;
 
       Array.from(peers.values()).forEach(({ pc }) => {
-        const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-        if (sender) sender.replaceTrack(screenTrack).catch((err) => {
-          console.error("Failed to send screen share to a peer:", err);
-        });
+        const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+        if (videoSender) {
+          videoSender.replaceTrack(screenTrack).catch((err) => {
+            console.error("Failed to send screen share to a peer:", err);
+          });
+        }
+        if (screenAudioTrack) {
+          const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+          if (audioSender) {
+            audioSender.replaceTrack(screenAudioTrack).catch((err) => {
+              console.error("Failed to send screen share audio to a peer:", err);
+            });
+          }
+        }
       });
 
       if (localTile) localTile.querySelector("video").srcObject = screenStream;
       updateLocalVideoMirror();
       flipcamButton.disabled = true;
       sharescreenButton.classList.add("active");
+      sharescreenButton.title = screenAudioTrack
+        ? "Sharing screen with audio - click to stop"
+        : "Sharing screen - click to stop";
       screenTrack.onended = () => stopScreenShare();
+      if (screenAudioTrack) screenAudioTrack.onended = () => stopScreenShare();
+
+      setTileScreenShareState(localTile, true, !!screenAudioTrack);
+      if (inCall && peersColRef) {
+        updateDoc(doc(peersColRef, myPeerId), {
+          sharingScreen: true,
+          sharingScreenAudio: !!screenAudioTrack,
+        }).catch((err) => console.warn("Failed to broadcast screen-share state:", err));
+      }
     } catch (err) {
       console.error("Error wiring up screen share:", err);
       showToast("Screen share started but couldn't reach every participant.");
@@ -1166,11 +1510,18 @@ function stopScreenShare() {
   }
   if (localStream) {
     const camTrack = localStream.getVideoTracks()[0];
+    const micTrack = localStream.getAudioTracks()[0];
     Array.from(peers.values()).forEach(({ pc }) => {
-      const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-      if (sender && camTrack) {
-        sender.replaceTrack(camTrack).catch((err) =>
+      const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+      if (videoSender && camTrack) {
+        videoSender.replaceTrack(camTrack).catch((err) =>
           console.error("Failed to restore camera track for a peer:", err)
+        );
+      }
+      const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+      if (audioSender && micTrack) {
+        audioSender.replaceTrack(micTrack).catch((err) =>
+          console.error("Failed to restore mic track for a peer:", err)
         );
       }
     });
@@ -1178,6 +1529,15 @@ function stopScreenShare() {
     updateLocalVideoMirror();
   }
   sharescreenButton.classList.remove("active");
+  sharescreenButton.title = "Share screen";
+
+  if (localTile) setTileScreenShareState(localTile, false, false);
+  if (inCall && peersColRef) {
+    updateDoc(doc(peersColRef, myPeerId), {
+      sharingScreen: false,
+      sharingScreenAudio: false,
+    }).catch((err) => console.warn("Failed to broadcast screen-share state:", err));
+  }
 }
 
 /* =========================================================================
@@ -1224,6 +1584,7 @@ hangupButton.onclick = async () => {
   webcamButton.classList.remove("active", "off");
   micButton.classList.remove("off");
   sharescreenButton.classList.remove("active");
+  sharescreenButton.title = "Share screen";
   updateParticipantCount();
   stopBackgroundAudioKeepAlive();
 };
