@@ -291,6 +291,31 @@ document.addEventListener("visibilitychange", async () => {
   }
 });
 
+let screenAudioMixCtx = null;
+
+function mixAudioStreams(micStream, screenAudioTrack) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  screenAudioMixCtx = new AudioContextClass();
+
+  const destination = screenAudioMixCtx.createMediaStreamDestination();
+
+  // 1. Connect Microphone Track
+  if (micStream && micStream.getAudioTracks().length > 0) {
+    const micSource = screenAudioMixCtx.createMediaStreamSource(micStream);
+    micSource.connect(destination);
+  }
+
+  // 2. Connect Screen Share Audio Track
+  if (screenAudioTrack) {
+    const tempScreenStream = new MediaStream([screenAudioTrack]);
+    const screenSource = screenAudioMixCtx.createMediaStreamSource(tempScreenStream);
+    screenSource.connect(destination);
+  }
+
+  // Return the newly combined audio track
+  return destination.stream.getAudioTracks()[0];
+}
+
 /* =========================================================================
    2. Grid helpers
    ========================================================================= */
@@ -1459,23 +1484,26 @@ sharescreenButton.onclick = async () => {
       // hear it too. If not, the mic keeps flowing as normal.
       const screenAudioTrack = screenStream.getAudioTracks()[0] || null;
 
+      let outgoingAudioTrack = localStream.getAudioTracks()[0];
+      if (screenAudioTrack) {
+        outgoingAudioTrack = mixAudioStreams(localStream, screenAudioTrack);
+      }
+
       Array.from(peers.values()).forEach(({ pc }) => {
+        // Replace Video Track
         const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
         if (videoSender) {
-          videoSender.replaceTrack(screenTrack).catch((err) => {
-            console.error("Failed to send screen share to a peer:", err);
-          });
+          videoSender.replaceTrack(screenTrack);
         }
+
+        // Replace Audio Track with Mixed Track (if screen audio was included)
         if (screenAudioTrack) {
           const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
-          if (audioSender) {
-            audioSender.replaceTrack(screenAudioTrack).catch((err) => {
-              console.error("Failed to send screen share audio to a peer:", err);
-            });
+          if (audioSender && outgoingAudioTrack) {
+            audioSender.replaceTrack(outgoingAudioTrack);
           }
         }
       });
-
       if (localTile) localTile.querySelector("video").srcObject = screenStream;
       updateLocalVideoMirror();
       flipcamButton.disabled = true;
@@ -1508,26 +1536,33 @@ function stopScreenShare() {
     screenStream = null;
     flipcamButton.disabled = false;
   }
+
+  // Clean up AudioContext mixer if active
+  if (screenAudioMixCtx) {
+    screenAudioMixCtx.close().catch(() => {});
+    screenAudioMixCtx = null;
+  }
+
   if (localStream) {
     const camTrack = localStream.getVideoTracks()[0];
     const micTrack = localStream.getAudioTracks()[0];
+
     Array.from(peers.values()).forEach(({ pc }) => {
       const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
       if (videoSender && camTrack) {
-        videoSender.replaceTrack(camTrack).catch((err) =>
-          console.error("Failed to restore camera track for a peer:", err)
-        );
+        videoSender.replaceTrack(camTrack);
       }
+      // Restore original mic track
       const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
       if (audioSender && micTrack) {
-        audioSender.replaceTrack(micTrack).catch((err) =>
-          console.error("Failed to restore mic track for a peer:", err)
-        );
+        audioSender.replaceTrack(micTrack);
       }
     });
+
     if (localTile) localTile.querySelector("video").srcObject = localStream;
     updateLocalVideoMirror();
   }
+
   sharescreenButton.classList.remove("active");
   sharescreenButton.title = "Share screen";
 
@@ -1536,7 +1571,7 @@ function stopScreenShare() {
     updateDoc(doc(peersColRef, myPeerId), {
       sharingScreen: false,
       sharingScreenAudio: false,
-    }).catch((err) => console.warn("Failed to broadcast screen-share state:", err));
+    });
   }
 }
 
