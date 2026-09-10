@@ -870,37 +870,65 @@ async function connectToPeer(remoteId) {
   if (participantTotal() >= MAX_PEERS) return; // room is full
 
   const pc = new RTCPeerConnection(servers);
+  const audioTransceiver = pc.addTransceiver("audio", { direction: "sendrecv" });
+  const camTransceiver = pc.addTransceiver("video", { direction: "sendrecv" });
+  const screenTransceiver = pc.addTransceiver("video", { direction: "sendrecv" });
+
+  const audioSender = audioTransceiver.sender;
+  const camSender = camTransceiver.sender;
+  const screenSender = screenTransceiver.sender;
+
+  // 2. Attach existing tracks to the primary lanes if they exist
+  if (localStream) {
+    const micTrack = localStream.getAudioTracks()[0];
+    if (micTrack) audioSender.replaceTrack(micTrack);
+
+    const camTrack = localStream.getVideoTracks()[0];
+    if (camTrack) camSender.replaceTrack(camTrack);
+  }
+
   const peerEntry = {
     pc,
     stream: new MediaStream(),
+    screenStream: new MediaStream(),
     tileEl: null,
+    screenTileEl: null,
+    screenSender, // Saved so sharescreenButton.onclick can push tracks here later
     unsubs: [],
     pendingCandidates: [],
     lastSeenMs: Date.now(),
   };
   peers.set(remoteId, peerEntry);
 
-  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-
+  // 3. Route incoming tracks to the correct video elements based on their lane
   pc.ontrack = (event) => {
-    event.streams[0].getTracks().forEach((track) => {
-      if (!peerEntry.stream.getTracks().includes(track)) {
-        peerEntry.stream.addTrack(track);
-      }
-    });
-    if (!peerEntry.tileEl) {
-      peerEntry.tileEl = createTile(remoteId, { isLocal: false });
-      const videoEl = peerEntry.tileEl.querySelector("video");
-      videoEl.srcObject = peerEntry.stream;
-      // Playback runs through the Web Audio gain graph (see
-      // ensureTileAudioGraph) so the per-tile Volume slider works - keep the
-      // <video> element itself muted or its audio would play twice.
-      videoEl.muted = true;
-    }
-    setTileStreamVisible(peerEntry.tileEl, true);
+    const transceivers = pc.getTransceivers();
 
-    if (event.track.kind === "audio") {
-      ensureTileAudioGraph(peerEntry.tileEl, peerEntry.stream);
+    // Lane 3 (Index 2) is always our dedicated Screen Share lane
+    if (event.transceiver === transceivers[2]) {
+      peerEntry.screenStream.addTrack(event.track);
+
+      // If the UI tile is already created by Firebase, trigger the video to play
+      if (peerEntry.screenTileEl) {
+        const videoEl = peerEntry.screenTileEl.querySelector("video");
+        videoEl.srcObject = peerEntry.screenStream;
+        setTileStreamVisible(peerEntry.screenTileEl, true);
+      }
+    } else {
+      // Lane 1 & 2 (Mic and Camera)
+      peerEntry.stream.addTrack(event.track);
+
+      if (!peerEntry.tileEl) {
+        peerEntry.tileEl = createTile(remoteId, { isLocal: false, isScreen: false });
+        const videoEl = peerEntry.tileEl.querySelector("video");
+        videoEl.srcObject = peerEntry.stream;
+        videoEl.muted = true;
+      }
+      setTileStreamVisible(peerEntry.tileEl, true);
+
+      if (event.track.kind === "audio") {
+        ensureTileAudioGraph(peerEntry.tileEl, peerEntry.stream);
+      }
     }
   };
 

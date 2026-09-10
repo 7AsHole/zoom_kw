@@ -1,13 +1,41 @@
-/*color palette
-   --bg      #141414  base app background
-   --panel   #1c1c1c  sidebar / header surface
-   --line    #2e2e2e  hairline borders (matched to avatar)
-   --tile    #232323  video tile surface
-   --text    #e9e9e9  primary text
-   --dim     #8b8b8b  secondary text
-   --accent  #34d399  "create call" / live state (emerald)
-   --accent-dim #1c3b31 accent surface for badges
-*/
+:root {
+    --color-bg: #141414;
+    --color-stage: #171717;
+    --color-panel: #1c1c1c;
+    --color-surface: #212121;
+    --color-tile: #232323;
+    --color-control: #2a2a2a;
+    --color-line: #2e2e2e;
+    --color-line-strong: #303132;
+    --color-line-medium: #333333;
+    --color-line-active: #3a3a3a;
+    --color-line-hover: #3e3e3e;
+    --color-text: #e9e9e9;
+    --color-text-bright: #f7f7f7;
+    --color-text-white: #fefefe;
+    --color-transparent: transparent;
+    --color-text-muted: #8b8b8b;
+    --color-text-soft: #c3c3c3;
+    --color-text-help: #c7c7c7;
+    --color-accent: #34d399;
+    --color-accent-surface: #1c3b31;
+    --color-accent-hover: #234437;
+    --color-danger: #ef6a6a;
+    --color-danger-light: #f69c9c;
+    --color-danger-strong: #d33434;
+    --color-danger-surface: #3b1c1c;
+    --color-danger-border: #532b2b;
+    --color-info: #a9d8c7;
+    --color-control-hover: #363636;
+    --color-video: #191919;
+    --color-footer: #1f1f1f;
+    --color-overlay: rgba(10, 10, 10, 0.6);
+    --color-tile-overlay: rgba(20, 20, 20, 0.72);
+    --color-control-overlay: rgba(35, 35, 35, 0.9);
+    --shadow-soft: rgba(0, 0, 0, 0.35);
+    --shadow-panel: rgba(0, 0, 0, 0.45);
+    --shadow-menu: rgba(0, 0, 0, 0.5);
+}
 
 * {
     box-sizing: border-box;
@@ -18,8 +46,8 @@ html, body {
     width: 100%;
     margin: 0;
     padding: 0;
-    background: #141414;
-    color: #e9e9e9;
+    background: var(--color-bg);
+    color: var(--color-text);
     font-family: "Inter", -apple-system, sans-serif;
 }
 
@@ -54,27 +82,27 @@ html, body {
     width: 100%;
     padding: 12px 14px;
     border-radius: 12px;
-    background: #1c1c1c;
-    border: 1px solid #2e2e2e;
-    color: #e9e9e9;
+    background: var(--color-panel);
+    border: 1px solid var(--color-line);
+    color: var(--color-text);
     font-size: 13px;
     line-height: 1.4;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 8px 24px var(--shadow-soft);
     opacity: 0;
     transform: translateY(-8px);
     animation: toastIn 0.22s ease forwards;
 }
 
 .toast.toast-error {
-    border-color: #532b2b;
+    border-color: var(--color-danger-border);
 }
 
 .toast.toast-error .toast-icon {
-    color: #f69c9c;
+    color: var(--color-danger-light);
 }
 
 .toast.toast-info .toast-icon {
-    color: #a9d8c7;
+    color: var(--color-info);
 }
 
 .toast .toast-icon {
@@ -115,7 +143,7 @@ body.intro-active {
     align-items: center;
     justify-content: center;
     gap: 18px;
-    background: radial-gradient(circle at 50% 42%, #1c1c1c 0%, #141414 68%);
+    background: radial-gradient(circle at 50% 42%, var(--color-panel) 0%, var(--color-bg) 68%);
     transition: opacity 0.8s ease, visibility 0.8s ease;
 }
 
@@ -137,7 +165,7 @@ body.intro-active {
     font-weight: 700;
     font-size: clamp(48px, 11vw, 112px);
     letter-spacing: -0.03em;
-    color: #e9e9e9;
+    color: var(--color-text);
     line-height: 1;
     opacity: 0;
     transform: rotate(-4deg) scale(0.82) translateY(14px);
@@ -149,12 +177,12 @@ body.intro-active {
     font-weight: 700;
     font-size: clamp(15px, 3.2vw, 28px);
     letter-spacing: 0.05em;
-    color: #f7f7f7;
-    border: 2px solid #fefefe;
+    color: var(--color-text-bright);
+    border: 2px solid var(--color-text-white);
     border-radius: 10px;
     padding: 4px 10px;
     margin-bottom: clamp(10px, 3vw, 24px);
-    background: #1c1c1c;
+    background: var(--color-panel);
     opacity: 0;
     transform: rotate(8deg) translateY(-6px) scale(0.7);
     animation: introKwIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) 0.38s forwards;
@@ -164,7 +192,7 @@ body.intro-active {
     margin: 0;
     font-size: 13px;
     letter-spacing: 0.03em;
-    color: #8b8b8b;
+    color: var(--color-text-muted);
     opacity: 0;
     animation: introTagIn 0.6s ease 0.85s forwards;
 }
@@ -205,9 +233,9 @@ body.intro-active {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background-color: #171717;
+    background-color: var(--color-stage);
     border: none;
-    border-right: 1px solid #2e2e2e;
+    border-right: 1px solid var(--color-line);
     min-width: 0;
     min-height: 100vh;
     overflow-y: auto;
@@ -254,9 +282,9 @@ body.intro-active {
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    border: 1px solid #2e2e2e;
-    background: #232323;
-    color: #8b8b8b;
+    border: 1px solid var(--color-line);
+    background: var(--color-tile);
+    color: var(--color-text-muted);
     font-family: "Inter", sans-serif;
     font-size: 12px;
     font-weight: 600;
@@ -266,9 +294,9 @@ body.intro-active {
 }
 
 .help-btn:hover {
-    background: #2e2e2e;
-    color: #e9e9e9;
-    border-color: #3a3a3a;
+    background: var(--color-line);
+    color: var(--color-text);
+    border-color: var(--color-line-active);
 }
 
 .help-modal {
@@ -288,7 +316,7 @@ body.intro-active {
 .help-modal-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(10, 10, 10, 0.6);
+    background: var(--color-overlay);
 }
 
 .help-modal-panel {
@@ -297,11 +325,11 @@ body.intro-active {
     width: min(92vw, 440px);
     max-height: 82vh;
     overflow-y: auto;
-    background: #1c1c1c;
-    border: 1px solid #2e2e2e;
+    background: var(--color-panel);
+    border: 1px solid var(--color-line);
     border-radius: 16px;
     padding: 20px 22px 24px;
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 16px 48px var(--shadow-panel);
 }
 
 .help-modal-header {
@@ -326,15 +354,15 @@ body.intro-active {
     height: 30px;
     border-radius: 8px;
     border: none;
-    background: transparent;
-    color: #8b8b8b;
+    background: var(--color-transparent);
+    color: var(--color-text-muted);
     cursor: pointer;
     font-size: 14px;
 }
 
 .help-modal-close:hover {
-    background: #232323;
-    color: #e9e9e9;
+    background: var(--color-tile);
+    color: var(--color-text);
 }
 
 .help-steps {
@@ -345,11 +373,11 @@ body.intro-active {
     gap: 10px;
     font-size: 13px;
     line-height: 1.5;
-    color: #c7c7c7;
+    color: var(--color-text-help);
 }
 
 .help-steps strong {
-    color: #e9e9e9;
+    color: var(--color-text);
 }
 
 .stage-meta {
@@ -357,20 +385,20 @@ body.intro-active {
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    color: #8b8b8b;
+    color: var(--color-text-muted);
 }
 
 .liveDot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: #787878;
+    background: var(--color-text-muted);
     flex-shrink: 0;
     transition: background 0.2s ease;
 }
 
 .liveDot.live {
-    background: #34d399;
+    background: var(--color-accent);
 }
 
 /* ---------- Call setup (create / join) ---------- */
@@ -386,20 +414,20 @@ body.intro-active {
     max-width: 40vw;
     padding: 10px 14px;
     border-radius: 10px;
-    border: 1px solid #2e2e2e;
-    background: #1c1c1c;
-    color: #e9e9e9;
+    border: 1px solid var(--color-line);
+    background: var(--color-panel);
+    color: var(--color-text);
     font-family: "Inter", sans-serif;
     font-size: 13px;
 }
 
 .call-setup #callInput::placeholder {
-    color: #8b8b8b;
+    color: var(--color-text-muted);
 }
 
 .call-setup #callInput:focus {
     outline: none;
-    border-color: #c3c3c3;
+    border-color: var(--color-text-soft);
 }
 
 .setup-btn {
@@ -409,28 +437,28 @@ body.intro-active {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    border: 1px solid #2e2e2e;
-    background: #1c3b31;
-    color: #34d399;
+    border: 1px solid var(--color-line);
+    background: var(--color-accent-surface);
+    color: var(--color-accent);
     cursor: pointer;
     font-size: 16px;
 }
 
 .setup-btn:hover:not(:disabled) {
-    background: #234437;
+    background: var(--color-accent-hover);
 }
 
 .setup-btn#copyLink,
 .setup-btn#callButton {
-    border-color: #333333;
-    background: #2a2a2a;
-    color: #e9e9e9;
+    border-color: var(--color-line-medium);
+    background: var(--color-control);
+    color: var(--color-text);
 }
 
 .setup-btn#copyLink:hover:not(:disabled),
 .setup-btn#callButton:hover:not(:disabled) {
-    background: #363636;
-    border-color: #3e3e3e;
+    background: var(--color-control-hover);
+    border-color: var(--color-line-hover);
 }
 
 .setup-btn:disabled {
@@ -584,8 +612,8 @@ body.intro-active {
 
 .participant-tile {
     position: relative;
-    background: #212121;
-    border: 1px solid #303132;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line-strong);
     border-radius: 16px;
     overflow: hidden;
     display: flex;
@@ -596,11 +624,11 @@ body.intro-active {
 }
 
 .participant-tile:hover {
-    border-color: #c3c3c3;
+    border-color: var(--color-text-soft);
 }
 
 .participant-tile.focused {
-    border-color: #c3c3c3;
+    border-color: var(--color-text-soft);
 }
 
 .participant-tile video {
@@ -610,7 +638,7 @@ body.intro-active {
     height: 100%;
     object-fit: cover;
     display: none;
-    background: #191919;
+    background: var(--color-video);
     transform-origin: center center;
     transition: transform 0.25s ease;
 }
@@ -638,13 +666,13 @@ body.intro-active {
     font-family: "Sora", sans-serif;
     font-size: 30px;
     font-weight: 600;
-    color: #c3c3c3;
+    color: var(--color-text-soft);
     z-index: 1;
-    background: #2e2e2e;
+    background: var(--color-line);
 }
 
 .avatar.local {
-    background: #2e2e2e;
+    background: var(--color-line);
 }
 
 .tile-tag {
@@ -656,7 +684,7 @@ body.intro-active {
     gap: 8px;
     padding: 6px 10px;
     border-radius: 8px;
-    background: rgba(20, 20, 20, 0.72);
+    background: var(--color-tile-overlay);
     font-size: 13px;
     z-index: 2;
 }
@@ -669,17 +697,17 @@ body.intro-active {
 }
 
 .mic-icon.muted {
-    color: #ef6a6a;
+    color: var(--color-danger);
 }
 
 .mic-icon.active {
-    color: #8b8b8b;
+    color: var(--color-text-muted);
 }
 
 .share-icon {
     display: none;
     font-size: 12px;
-    color: #34d399;
+    color: var(--color-accent);
 }
 
 .share-icon.sharing {
@@ -696,9 +724,9 @@ body.intro-active {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: rgba(20, 20, 20, 0.72);
-    color: #e9e9e9;
-    border: 1px solid #2e2e2e;
+    background: var(--color-tile-overlay);
+    color: var(--color-text);
+    border: 1px solid var(--color-line);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -707,12 +735,12 @@ body.intro-active {
 }
 
 .zoom-btn:hover {
-    background: rgba(35, 35, 35, 0.9);
+    background: var(--color-control-overlay);
 }
 
 .zoom-btn.zoom-active {
-    color: #34d399;
-    border-color: #1c3b31;
+    color: var(--color-accent);
+    border-color: var(--color-accent-surface);
 }
 
 /* ---------- "..." tile options button + Size/Volume popup ---------- */
@@ -729,9 +757,9 @@ body.intro-active {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: rgba(20, 20, 20, 0.72);
-    color: #e9e9e9;
-    border: 1px solid #2e2e2e;
+    background: var(--color-tile-overlay);
+    color: var(--color-text);
+    border: 1px solid var(--color-line);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -740,7 +768,7 @@ body.intro-active {
 }
 
 .tile-menu-btn:hover {
-    background: rgba(35, 35, 35, 0.9);
+    background: var(--color-control-overlay);
 }
 
 .tile-menu {
@@ -750,9 +778,9 @@ body.intro-active {
     max-width: calc(100vw - 24px);
     padding: 14px;
     border-radius: 12px;
-    background: #1c1c1c;
-    border: 1px solid #303132;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    background: var(--color-panel);
+    border: 1px solid var(--color-line-strong);
+    box-shadow: 0 12px 32px var(--shadow-menu);
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -777,11 +805,11 @@ body.intro-active {
     align-items: baseline;
     justify-content: space-between;
     font-size: 12px;
-    color: #8b8b8b;
+    color: var(--color-text-muted);
 }
 
 .tile-menu-value {
-    color: #e9e9e9;
+    color: var(--color-text);
     font-variant-numeric: tabular-nums;
 }
 
@@ -789,16 +817,16 @@ body.intro-active {
     width: 100%;
     padding: 8px 10px;
     border-radius: 8px;
-    border: 1px solid #303132;
-    background: #212121;
-    color: #e9e9e9;
+    border: 1px solid var(--color-line-strong);
+    background: var(--color-surface);
+    color: var(--color-text);
     font-size: 13px;
 }
 
 .tile-menu-volume,
 .tile-menu-screenvolume {
     width: 100%;
-    accent-color: #e9e9e9;
+    accent-color: var(--color-text);
 }
 
 .tile-menu-volume:disabled,
@@ -839,8 +867,8 @@ body.intro-active {
     height: 70px;
     padding: 0 22px;
     border-radius: 35px;
-    background-color: #1f1f1f;
-    color: white;
+    background-color: var(--color-footer);
+    color: var(--color-text-white);
 
     display: flex;
     flex-direction: row;
@@ -857,8 +885,8 @@ body.intro-active {
     width: 46px;
     height: 46px;
     border-radius: 50%;
-    background: #2a2a2a;
-    color: #e9e9e9;
+    background: var(--color-control);
+    color: var(--color-text);
     border: none;
     cursor: pointer;
     font-size: 18px;
@@ -866,7 +894,7 @@ body.intro-active {
 }
 
 .ctrl-btn:hover:not(:disabled) {
-    background: #363636;
+    background: var(--color-control-hover);
 }
 
 .ctrl-btn:disabled {
@@ -876,14 +904,14 @@ body.intro-active {
 
 /* mic / camera toggled off */
 .ctrl-btn.off {
-    background: #3b1c1c;
-    color: #ef6a6a;
+    background: var(--color-danger-surface);
+    color: var(--color-danger);
 }
 
 /* screen share currently active */
 .ctrl-btn.active {
-    background: #1c3b31;
-    color: #34d399;
+    background: var(--color-accent-surface);
+    color: var(--color-accent);
 }
 
 /* button exists but the platform can't actually do the thing (e.g. screen
@@ -895,12 +923,12 @@ body.intro-active {
 
 /* hang up */
 .ctrl-btn.danger {
-    background: #3b1c1c;
-    color: #d33434;
+    background: var(--color-danger-surface);
+    color: var(--color-danger-strong);
 }
 
 .ctrl-btn.danger:hover:not(:disabled) {
-    background: #532b2b;
+    background: var(--color-danger-border);
 }
 
 #flipcamButton {
