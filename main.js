@@ -871,24 +871,19 @@ async function connectToPeer(remoteId) {
 
   const pc = new RTCPeerConnection(servers);
 
-  const micTrack = localStream?.getAudioTracks()[0];
-  const camTrack = localStream?.getVideoTracks()[0];
+  let camSender = null;
+  let micSender = null;
 
-  // 1. Audio Lane (Inject mic track immediately if available)
-  if (micTrack) {
-    pc.addTransceiver(micTrack, { direction: "sendrecv", streams: [localStream] });
-  } else {
-    pc.addTransceiver("audio", { direction: "sendrecv" });
+  // 1. Add Mic and Camera normally (fixes the host/joiner connection bug)
+  if (localStream) {
+    localStream.getTracks().forEach((track) => {
+      const sender = pc.addTrack(track, localStream);
+      if (track.kind === "video") camSender = sender;
+      if (track.kind === "audio") micSender = sender;
+    });
   }
 
-  // 2. Camera Lane (Inject camera track immediately if available)
-  if (camTrack) {
-    pc.addTransceiver(camTrack, { direction: "sendrecv", streams: [localStream] });
-  } else {
-    pc.addTransceiver("video", { direction: "sendrecv" });
-  }
-
-  // 3. Screen Share Lane (Always reserved empty for later)
+  // 2. Add an explicit empty video lane ONLY for screen sharing
   const screenTransceiver = pc.addTransceiver("video", { direction: "sendrecv" });
   const screenSender = screenTransceiver.sender;
 
@@ -898,7 +893,9 @@ async function connectToPeer(remoteId) {
     screenStream: new MediaStream(),
     tileEl: null,
     screenTileEl: null,
-    screenSender, // Save this so we can easily add screen shares later
+    camSender,     // <--- Saved explicit reference to camera
+    micSender,     // <--- Saved explicit reference to mic
+    screenSender,  // <--- Saved explicit reference to screen share
     unsubs: [],
     pendingCandidates: [],
     lastSeenMs: Date.now(),
@@ -906,20 +903,24 @@ async function connectToPeer(remoteId) {
   peers.set(remoteId, peerEntry);
 
   pc.ontrack = (event) => {
-    const transceivers = pc.getTransceivers();
-
-    // Lane 3 (Index 2) is always our dedicated Screen Share lane
-    if (event.transceiver === transceivers[2]) {
-      peerEntry.screenStream.addTrack(event.track);
-
+    // Check if this track matches our exact screen share lane
+    if (event.transceiver === screenTransceiver) {
+      if (!peerEntry.screenStream.getTracks().includes(event.track)) {
+        peerEntry.screenStream.addTrack(event.track);
+      }
       if (peerEntry.screenTileEl) {
         const videoEl = peerEntry.screenTileEl.querySelector("video");
         videoEl.srcObject = peerEntry.screenStream;
         setTileStreamVisible(peerEntry.screenTileEl, true);
       }
     } else {
-      // Lane 1 & 2 (Mic and Camera)
-      peerEntry.stream.addTrack(event.track);
+      // Primary Mic & Camera Lane
+      const trackSource = event.streams[0] ? event.streams[0].getTracks() : [event.track];
+      trackSource.forEach((track) => {
+        if (!peerEntry.stream.getTracks().includes(track)) {
+          peerEntry.stream.addTrack(track);
+        }
+      });
 
       if (!peerEntry.tileEl) {
         peerEntry.tileEl = createTile(remoteId, { isLocal: false, isScreen: false });
@@ -1557,7 +1558,7 @@ sharescreenButton.onclick = async () => {
       setTileStreamVisible(localScreenTile, true);
       pinTile(localScreenTile);
 
-      // Send screen track over dedicated screen senders
+      // Explicitly send screen track over the dedicated screenSender
       Array.from(peers.values()).forEach(({ screenSender }) => {
         if (screenSender && screenTrack) {
           screenSender.replaceTrack(screenTrack).catch(console.error);
@@ -1571,11 +1572,10 @@ sharescreenButton.onclick = async () => {
         pinTile(localTile);
       }
 
-      // Send screen track over primary video sender
-      Array.from(peers.values()).forEach(({ pc }) => {
-        const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-        if (videoSender && screenTrack) {
-          videoSender.replaceTrack(screenTrack).catch(console.error);
+      // Explicitly send screen track over the camSender
+      Array.from(peers.values()).forEach(({ camSender }) => {
+        if (camSender && screenTrack) {
+          camSender.replaceTrack(screenTrack).catch(console.error);
         }
       });
     }
@@ -1606,16 +1606,17 @@ function stopScreenShare() {
     flipcamButton.disabled = false;
   }
 
-  // Clear remote screen tracks
-  Array.from(peers.values()).forEach(({ screenSender }) => {
+  Array.from(peers.values()).forEach(({ screenSender, camSender }) => {
+    // Empty the screen lane
     if (screenSender) screenSender.replaceTrack(null).catch(() => {});
+    
+    // Restore the camera lane
+    if (camSender && localStream) {
+      const camTrack = localStream.getVideoTracks()[0];
+      if (camTrack) camSender.replaceTrack(camTrack).catch(console.error);
+    }
   });
-
-  if (localScreenTile) {
-    removeTile(localScreenTile);
-    localScreenTile = null;
-  }
-
+  
   if (localStream && localTile) {
     const camTrack = localStream.getVideoTracks()[0];
     
