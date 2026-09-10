@@ -67,6 +67,47 @@ const helpModal = document.getElementById("helpModal");
    These exist so that failures are always visible to the user instead of
    only landing in the console (see fixes #5 throughout this file). */
 
+// Keep track of consistent peer numbers (User 1, User 2, etc.)
+const peerNumbers = new Map();
+let nextPeerNumber = 2; // "User 1" is always local
+
+function getPeerNumber(peerId) {
+  if (peerId === myPeerId) return 1;
+  if (!peerNumbers.has(peerId)) {
+    peerNumbers.set(peerId, nextPeerNumber++);
+  }
+  return peerNumbers.get(peerId);
+}
+
+// Automatically pin/focus a tile across the grid
+function pinTile(tile) {
+  if (!tile || participantTotal() < 2) return;
+
+  callGrid
+    .querySelectorAll(".participant-tile.focused")
+    .forEach((t) => t.classList.remove("focused"));
+
+  tile.classList.add("focused");
+  callGrid.classList.add("has-focus");
+}
+
+// Focus the latest active screen share tile, or clear focus if none remain
+function focusLatestScreenShare() {
+  const screenTiles = Array.from(callGrid.querySelectorAll(".participant-tile"))
+    .filter((t) => t.dataset.sharingScreen === "true" || t.dataset.isScreen === "true");
+
+  if (screenTiles.length > 0) {
+    // Priority goes to the latest screen share
+    const latestTile = screenTiles[screenTiles.length - 1];
+    pinTile(latestTile);
+  } else {
+    callGrid.classList.remove("has-focus");
+    callGrid
+      .querySelectorAll(".participant-tile.focused")
+      .forEach((t) => t.classList.remove("focused"));
+  }
+}
+
 function showToast(message, type = "error", timeoutMs = 4500) {
   if (!toastContainer) {
     // Absolute last resort if the container is somehow missing.
@@ -168,8 +209,8 @@ let currentFacingMode = 'user';
 
 // remotePeerId -> { pc, stream, tileEl, unsubs: [], pendingCandidates: [] }
 const peers = new Map();
-const PRESENCE_HEARTBEAT_MS = 5000;
-const PRESENCE_TIMEOUT_MS = 15000;
+const PRESENCE_HEARTBEAT_MS = 45000;
+const PRESENCE_TIMEOUT_MS = 90000;
 
 let presenceHeartbeatTimer = null;
 let presenceCleanupTimer = null;
@@ -716,23 +757,23 @@ function refreshTileMenuIfOpen(tile) {
   });
 }
 
-function createTile(peerId, { isLocal }) {
-  const label = isLocal ? "You" : `User ${nextTileNumber}`;
-  if (!isLocal) nextTileNumber += 1;
+function createTile(peerId, { isLocal, isScreen = false }) {
+  const num = getPeerNumber(peerId);
+  const baseLabel = isLocal ? "You" : `User ${num}`;
+  const label = isScreen ? `${baseLabel} (Screen)` : baseLabel;
 
   const tile = document.createElement("div");
-  tile.className = "participant-tile";
+  tile.className = "participant-tile" + (isScreen ? " screen-tile" : "");
   tile.dataset.peerId = peerId;
-  tile.dataset.sharingScreen = "false";
+  tile.dataset.isScreen = isScreen ? "true" : "false";
+  tile.dataset.sharingScreen = isScreen ? "true" : "false";
   tile.dataset.sharingScreenAudio = "false";
 
   tile.addEventListener("click", (event) => {
-    if (event.target.closest(".zoom-btn") || event.target.closest(".tile-menu-btn")) return; // handled separately
+    if (event.target.closest(".zoom-btn") || event.target.closest(".tile-menu-btn")) return;
     toggleFocusTile(tile);
   });
 
-  // Right-click opens the same Size/Volume popup as the "..." button below,
-  // for anyone with a mouse.
   tile.addEventListener("contextmenu", (event) => {
     event.preventDefault();
     openTileMenu(tile, tile.querySelector("video"), null, {
@@ -748,7 +789,12 @@ function createTile(peerId, { isLocal }) {
 
   const avatar = document.createElement("div");
   avatar.className = "avatar" + (isLocal ? " local" : "");
-  avatar.textContent = isLocal ? "U1" : `U${nextTileNumber - 1}`;
+  
+  if (isScreen) {
+    avatar.innerHTML = '<i class="fa-solid fa-display"></i>';
+  } else {
+    avatar.textContent = `U${num}`;
+  }
 
   const tag = document.createElement("div");
   tag.className = "tile-tag";
@@ -766,9 +812,6 @@ function createTile(peerId, { isLocal }) {
   tag.append(micIcon, shareIcon, nameSpan);
   tile.append(video, avatar, tag);
 
-  // Zoom (right) and the "..." options menu (left) are local view controls
-  // only - offered on every tile, yours and everyone else's, since neither
-  // one changes what's actually sent to anybody.
   attachZoomControl(tile, video);
   attachMenuButton(tile, video);
 
@@ -1443,6 +1486,8 @@ if (isMobileUA()) {
   sharescreenButton.title = "Screen sharing isn't supported in this browser.";
 }
 
+let localScreenTile = null;
+
 sharescreenButton.onclick = async () => {
   if (sharescreenButton.disabled) return;
 
@@ -1465,65 +1510,59 @@ sharescreenButton.onclick = async () => {
       console.error("Screen share failed:", err);
       screenStream = null;
       if (err.name === "NotAllowedError") {
-        showToast(
-          isMobileUA()
-            ? "Screen sharing isn't supported on mobile browsers yet."
-            : "Screen share permission was denied."
-        );
+        showToast("Screen share permission was denied.");
       } else {
         showToast("Couldn't start screen sharing: " + (err.message || err.name));
       }
       return;
     }
 
-    try {
-      const screenTrack = screenStream.getVideoTracks()[0];
-      // Some browsers (mainly Chrome, and only for a shared tab/whole
-      // screen) let the user opt in to sharing system/tab audio - if it's
-      // there, swap it in for the outgoing mic track so participants can
-      // hear it too. If not, the mic keeps flowing as normal.
-      const screenAudioTrack = screenStream.getAudioTracks()[0] || null;
+    const screenTrack = screenStream.getVideoTracks()[0];
+    const screenAudioTrack = screenStream.getAudioTracks()[0] || null;
 
-      let outgoingAudioTrack = localStream.getAudioTracks()[0];
-      if (screenAudioTrack) {
-        outgoingAudioTrack = mixAudioStreams(localStream, screenAudioTrack);
-      }
+    if (camEnabled) {
+      // 1. Camera ON + Screen Share ON -> Create separate tile
+      localScreenTile = createTile(myPeerId, { isLocal: true, isScreen: true });
+      localScreenTile.querySelector("video").srcObject = screenStream;
+      setTileStreamVisible(localScreenTile, true);
+      pinTile(localScreenTile);
 
-      Array.from(peers.values()).forEach(({ pc }) => {
-        // Replace Video Track
-        const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-        if (videoSender) {
-          videoSender.replaceTrack(screenTrack);
-        }
-
-        // Replace Audio Track with Mixed Track (if screen audio was included)
-        if (screenAudioTrack) {
-          const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
-          if (audioSender && outgoingAudioTrack) {
-            audioSender.replaceTrack(outgoingAudioTrack);
-          }
+      // Send screen track over dedicated screen senders
+      Array.from(peers.values()).forEach(({ screenSender }) => {
+        if (screenSender && screenTrack) {
+          screenSender.replaceTrack(screenTrack).catch(console.error);
         }
       });
-      if (localTile) localTile.querySelector("video").srcObject = screenStream;
-      updateLocalVideoMirror();
-      flipcamButton.disabled = true;
-      sharescreenButton.classList.add("active");
-      sharescreenButton.title = screenAudioTrack
-        ? "Sharing screen with audio - click to stop"
-        : "Sharing screen - click to stop";
-      screenTrack.onended = () => stopScreenShare();
-      if (screenAudioTrack) screenAudioTrack.onended = () => stopScreenShare();
-
-      setTileScreenShareState(localTile, true, !!screenAudioTrack);
-      if (inCall && peersColRef) {
-        updateDoc(doc(peersColRef, myPeerId), {
-          sharingScreen: true,
-          sharingScreenAudio: !!screenAudioTrack,
-        }).catch((err) => console.warn("Failed to broadcast screen-share state:", err));
+    } else {
+      // 2. Camera OFF + Screen Share ON -> Reuse main local tile
+      if (localTile) {
+        localTile.querySelector("video").srcObject = screenStream;
+        setTileStreamVisible(localTile, true);
+        pinTile(localTile);
       }
-    } catch (err) {
-      console.error("Error wiring up screen share:", err);
-      showToast("Screen share started but couldn't reach every participant.");
+
+      // Send screen track over primary video sender
+      Array.from(peers.values()).forEach(({ pc }) => {
+        const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+        if (videoSender && screenTrack) {
+          videoSender.replaceTrack(screenTrack).catch(console.error);
+        }
+      });
+    }
+
+    flipcamButton.disabled = true;
+    sharescreenButton.classList.add("active");
+    sharescreenButton.title = "Sharing screen - click to stop";
+
+    screenTrack.onended = () => stopScreenShare();
+    if (screenAudioTrack) screenAudioTrack.onended = () => stopScreenShare();
+
+    if (inCall && peersColRef) {
+      updateDoc(doc(peersColRef, myPeerId), {
+        sharingScreen: true,
+        sharingScreenAudio: !!screenAudioTrack,
+        camEnabled: camEnabled,
+      }).catch((err) => console.warn("Failed to broadcast screen state:", err));
     }
   } else {
     stopScreenShare();
@@ -1537,29 +1576,29 @@ function stopScreenShare() {
     flipcamButton.disabled = false;
   }
 
-  // Clean up AudioContext mixer if active
-  if (screenAudioMixCtx) {
-    screenAudioMixCtx.close().catch(() => {});
-    screenAudioMixCtx = null;
+  // Clear remote screen tracks
+  Array.from(peers.values()).forEach(({ screenSender }) => {
+    if (screenSender) screenSender.replaceTrack(null).catch(() => {});
+  });
+
+  if (localScreenTile) {
+    removeTile(localScreenTile);
+    localScreenTile = null;
   }
 
-  if (localStream) {
+  if (localStream && localTile) {
     const camTrack = localStream.getVideoTracks()[0];
-    const micTrack = localStream.getAudioTracks()[0];
-
+    
+    // Restore camera track on main video sender
     Array.from(peers.values()).forEach(({ pc }) => {
       const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
       if (videoSender && camTrack) {
-        videoSender.replaceTrack(camTrack);
-      }
-      // Restore original mic track
-      const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
-      if (audioSender && micTrack) {
-        audioSender.replaceTrack(micTrack);
+        videoSender.replaceTrack(camTrack).catch(console.error);
       }
     });
 
-    if (localTile) localTile.querySelector("video").srcObject = localStream;
+    localTile.querySelector("video").srcObject = localStream;
+    setTileStreamVisible(localTile, camEnabled);
     updateLocalVideoMirror();
   }
 
@@ -1571,8 +1610,11 @@ function stopScreenShare() {
     updateDoc(doc(peersColRef, myPeerId), {
       sharingScreen: false,
       sharingScreenAudio: false,
-    });
+      camEnabled: camEnabled,
+    }).catch((err) => console.warn("Failed to broadcast screen state:", err));
   }
+
+  focusLatestScreenShare();
 }
 
 /* =========================================================================
