@@ -210,7 +210,7 @@ let currentFacingMode = 'user';
 // remotePeerId -> { pc, stream, tileEl, unsubs: [], pendingCandidates: [] }
 const peers = new Map();
 const PRESENCE_HEARTBEAT_MS = 45000;
-const PRESENCE_TIMEOUT_MS = 90000;
+const PRESENCE_TIMEOUT_MS = 60000;
 
 let presenceHeartbeatTimer = null;
 let presenceCleanupTimer = null;
