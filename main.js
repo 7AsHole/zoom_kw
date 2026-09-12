@@ -354,6 +354,58 @@ function mixAudioStreams(micStream, screenAudioTrack) {
   return destination.stream.getAudioTracks()[0];
 }
 
+// Plugging/unplugging a headset, dongle, or Bluetooth device can make the
+// OS switch its default mic mid-call - when that happens the browser often
+// just ends the current mic track outright, going silent with no warning
+// (mute state stays "unmuted" even though nothing is actually coming
+// through). This grabs a fresh mic track when that happens and re-wires it
+// everywhere the old one was in use, without dropping the call.
+function attachMicRecovery(track) {
+  if (!track) return;
+  track.addEventListener("ended", async () => {
+    if (!localStream || !inCall) return; // call already ended - nothing to recover
+
+    console.warn("Mic track ended (likely a device change) - reconnecting.");
+    showToast("Microphone device changed - reconnecting your mic...", "info");
+
+    try {
+      const freshStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const freshTrack = freshStream.getAudioTracks()[0];
+      if (!freshTrack) return;
+
+      freshTrack.enabled = micEnabled; // keep whatever mute state the user had set
+      if (localStream.getAudioTracks().includes(track)) {
+        localStream.removeTrack(track);
+      }
+      localStream.addTrack(freshTrack);
+      attachMicRecovery(freshTrack); // re-arm in case the device changes again
+
+      // If a screen share with system audio is active, the outgoing audio
+      // is a mixed track built from the mic - rebuild it with the new mic
+      // track. Otherwise just swap the plain mic track back in.
+      const screenAudioTrack = screenStream?.getAudioTracks()[0] || null;
+      const outgoingTrack = screenAudioTrack
+        ? mixAudioStreams(localStream, screenAudioTrack)
+        : freshTrack;
+
+      Array.from(peers.values()).forEach(({ pc }) => {
+        const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+        if (audioSender) {
+          audioSender.replaceTrack(outgoingTrack).catch((err) =>
+            console.error("Failed to restore mic for a peer:", err)
+          );
+        }
+      });
+    } catch (err) {
+      console.error("Failed to reconnect microphone:", err);
+      showToast(
+        "Lost microphone access after a device change - check your audio settings.",
+        "error"
+      );
+    }
+  });
+}
+
 /* =========================================================================
    2. Grid helpers
    ========================================================================= */
@@ -1069,6 +1121,7 @@ async function setupMedia() {
       video: true,
       audio: true,
     });
+    attachMicRecovery(localStream.getAudioTracks()[0]);
 
     localTile = createTile(myPeerId, { isLocal: true });
     localTile.querySelector("video").srcObject = localStream;
@@ -1123,7 +1176,13 @@ webcamButton.onclick = async () => {
   localStream.getVideoTracks().forEach((track) => (track.enabled = camEnabled));
   webcamButton.classList.toggle("off", !camEnabled);
   webcamButton.classList.toggle("active", camEnabled);
-  setTileStreamVisible(localTile, camEnabled);
+
+  // While screen sharing, the local tile is showing the screen, not the
+  // camera - toggling the (currently unused) camera track shouldn't hide
+  // that preview or make it look like the share stopped.
+  if (!screenStream) {
+    setTileStreamVisible(localTile, camEnabled);
+  }
 };
 
 function startPresenceHeartbeat() {
@@ -1543,6 +1602,7 @@ sharescreenButton.onclick = async () => {
         }
       });
       if (localTile) localTile.querySelector("video").srcObject = screenStream;
+      setTileStreamVisible(localTile, true);
       updateLocalVideoMirror();
       flipcamButton.disabled = true;
       sharescreenButton.classList.add("active");
@@ -1550,7 +1610,14 @@ sharescreenButton.onclick = async () => {
         ? "Sharing screen with audio - click to stop"
         : "Sharing screen - click to stop";
       screenTrack.onended = () => stopScreenShare();
-      if (screenAudioTrack) screenAudioTrack.onended = () => stopScreenShare();
+      // Only the video track ending means "the user actually stopped
+      // sharing". The audio track can end on its own - e.g. switching
+      // audio output devices invalidates the system-audio loopback capture
+      // - and that shouldn't kill the video share too, just fall back to
+      // mic-only audio.
+      if (screenAudioTrack) {
+        screenAudioTrack.onended = () => revertScreenShareToMicOnly();
+      }
 
       setTileScreenShareState(localTile, true, !!screenAudioTrack);
       if (inCall && peersColRef) {
@@ -1568,6 +1635,40 @@ sharescreenButton.onclick = async () => {
   }
 };
 
+// The screen's system-audio track ended on its own (most commonly: the
+// user switched audio output devices, which invalidates the loopback
+// capture) - keep the video share running, just stop mixing in system
+// audio and go back to plain mic audio.
+function revertScreenShareToMicOnly() {
+  if (!screenStream) return;
+ 
+  console.warn("Screen-share audio ended (likely a device change) - continuing video-only.");
+  showToast("Screen share audio stopped (audio device changed) - video keeps sharing.", "info");
+ 
+  if (screenAudioMixCtx) {
+    screenAudioMixCtx.close().catch(() => {});
+    screenAudioMixCtx = null;
+  }
+ 
+  const micTrack = localStream?.getAudioTracks()[0];
+  Array.from(peers.values()).forEach(({ pc }) => {
+    const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+    if (audioSender && micTrack) {
+      audioSender.replaceTrack(micTrack).catch((err) =>
+        console.error("Failed to fall back to mic-only audio for a peer:", err)
+      );
+    }
+  });
+ 
+  sharescreenButton.title = "Sharing screen - click to stop";
+  setTileScreenShareState(localTile, true, false);
+  if (inCall && peersColRef) {
+    updateDoc(doc(peersColRef, myPeerId), { sharingScreenAudio: false }).catch((err) =>
+      console.warn("Failed to broadcast screen-share audio state:", err)
+    );
+  }
+}
+ 
 function stopScreenShare() {
   if (screenStream) {
     screenStream.getTracks().forEach((track) => track.stop());
@@ -1598,6 +1699,7 @@ function stopScreenShare() {
     });
 
     if (localTile) localTile.querySelector("video").srcObject = localStream;
+    setTileStreamVisible(localTile, camEnabled);
     updateLocalVideoMirror();
   }
 
