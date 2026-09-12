@@ -988,11 +988,12 @@ async function connectToPeer(remoteId) {
   pc.onnegotiationneeded = async () => {
     try {
       peerEntry.makingOffer = true;
-      await pc.setLocalDescription();
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
       await setDoc(
         signalRef,
         {
-          offer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
+          offer: { type: offer.type, sdp: offer.sdp },
           from: myPeerId,
         },
         { merge: true }
@@ -1054,9 +1055,10 @@ async function connectToPeer(remoteId) {
               await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
               await flushPendingCandidates(peerEntry);
 
-              await pc.setLocalDescription();
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
               await updateDoc(signalRef, {
-                answer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp },
+                answer: { type: answer.type, sdp: answer.sdp },
               });
             } else if (data.answer && pc.signalingState === "have-local-offer") {
               await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
