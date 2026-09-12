@@ -714,6 +714,17 @@ body.intro-active {
     display: inline-block;
 }
 
+/* A dedicated screen tile (separate from its owner's camera tile) gets a
+   subtle accent border so it reads as "this is the screen, not a person". */
+.screen-tile {
+    border-color: var(--color-accent-surface);
+}
+
+.avatar.screen-avatar {
+    background: var(--color-accent-surface);
+    color: var(--color-accent);
+}
+
 /* ---------- Per-tile digital zoom (local camera/screen only) ---------- */
 
 .zoom-btn {
